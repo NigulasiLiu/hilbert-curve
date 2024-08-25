@@ -1,4 +1,4 @@
-package org.davidmoten.hilbert;
+package org.davidmoten.hilbert.HilbertComponent;
 
 import java.util.Iterator;
 import java.util.List;

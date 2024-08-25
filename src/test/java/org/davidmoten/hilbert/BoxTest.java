@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
+import org.davidmoten.hilbert.HilbertComponent.Box;
 import org.junit.Test;
 
 public class BoxTest {

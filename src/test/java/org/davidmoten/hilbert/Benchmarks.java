@@ -4,6 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.davidmoten.hilbert.HilbertComponent.HilbertCurve;
+import org.davidmoten.hilbert.HilbertComponent.Ranges;
+import org.davidmoten.hilbert.HilbertComponent.SmallHilbertCurve;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.infra.Blackhole;
 

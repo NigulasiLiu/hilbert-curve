@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
 
+import org.davidmoten.hilbert.HilbertComponent.*;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -73,11 +74,11 @@ public class HilbertCurveTest {
             String actual = new String(
                     Files.readAllBytes(
                             new File("target/indexes-2d-bits-" + bits + ".txt").toPath()),
-                    StandardCharsets.UTF_8);
+                    StandardCharsets.UTF_8).replace("\r\n", "\n");
             String expected = new String(Files.readAllBytes(
                     new File("src/test/resources/expected/indexes-2d-bits-" + bits + ".txt")
                             .toPath()),
-                    StandardCharsets.UTF_8);
+                    StandardCharsets.UTF_8).replace("\r\n", "\n");
             assertEquals(expected, actual);
         }
     }

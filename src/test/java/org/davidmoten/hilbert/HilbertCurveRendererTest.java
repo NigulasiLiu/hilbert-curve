@@ -7,7 +7,8 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
-import org.davidmoten.hilbert.HilbertCurveRenderer.Option;
+import org.davidmoten.hilbert.HilbertComponent.HilbertCurveRenderer;
+import org.davidmoten.hilbert.HilbertComponent.HilbertCurveRenderer.Option;
 import org.davidmoten.hilbert.exceptions.IORuntimeException;
 import org.junit.Ignore;
 import org.junit.Test;

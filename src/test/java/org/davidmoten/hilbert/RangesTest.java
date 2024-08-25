@@ -5,6 +5,10 @@ import static org.junit.Assert.assertEquals;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.davidmoten.hilbert.HilbertComponent.HilbertCurve;
+import org.davidmoten.hilbert.HilbertComponent.Range;
+import org.davidmoten.hilbert.HilbertComponent.Ranges;
+import org.davidmoten.hilbert.HilbertComponent.SmallHilbertCurve;
 import org.junit.Test;
 
 import com.github.davidmoten.guavamini.Lists;

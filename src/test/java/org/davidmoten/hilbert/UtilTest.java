@@ -3,6 +3,7 @@ package org.davidmoten.hilbert;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 
+import org.davidmoten.hilbert.HilbertComponent.Util;
 import org.junit.Test;
 
 import com.github.davidmoten.junit.Asserts;
