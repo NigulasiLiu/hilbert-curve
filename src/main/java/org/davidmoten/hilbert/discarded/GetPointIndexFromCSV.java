@@ -1,4 +1,4 @@
-package org.davidmoten.hilbert.Compute;
+package org.davidmoten.hilbert.discarded;
 
 import org.davidmoten.hilbert.HilbertComponent.HilbertCurve;
 

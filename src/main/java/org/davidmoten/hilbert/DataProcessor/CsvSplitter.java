@@ -4,39 +4,69 @@ import java.io.*;
 
 public class CsvSplitter {
 
+    private static final String INPUT_CSV_PATH = "C:\\Users\\Admin\\Desktop\\SpatialDataSet\\osmfiles\\birminghan_large_final.csv";
+    private static final String OUTPUT_CSV_PATH = "C:\\Users\\Admin\\Desktop\\SpatialDataSet\\osmfiles\\birminghan_large_final_1.csv";
+
     public static void main(String[] args) {
-        // 固定输入文件地址
-        String inputFile = "C:\\Users\\Admin\\Desktop\\SpatialDataSet\\osmfiles\\6Million_DataSet.csv";
-        String outputFile = "C:\\Users\\Admin\\Desktop\\SpatialDataSet\\osmfiles\\2^n_DataSet.csv";  // 可以根据需要修改输出文件的路径
-        int n = 20;  // 这里固定n为3，你可以根据需要调整
 
-        int limit = (int) Math.pow(2, n);  // 计算2^n
+        int k1 = 0;
+        int k2 = 20;
 
-        try (BufferedReader br = new BufferedReader(new FileReader(inputFile));
-             BufferedWriter bw = new BufferedWriter(new FileWriter(outputFile))) {
+        // 计算2^k1和2^k2的值
+        long startLine = (long) Math.pow(2, k1);
+        long endLine = (long) Math.pow(2, k2);
 
-            String line;
-            int count = 0;
-            // 跳过标题行
-            br.readLine();
-            bw.write("id,latitude,longitude\n");  // 写入CSV文件头
+        try {
+            long totalLines = countLines(INPUT_CSV_PATH);
 
-            while ((line = br.readLine()) != null && count < limit) {
-                String[] parts = line.split(",");
-                if (parts.length == 3) {
-                    long id = count;  // 使用递增的ID
-                    double latitude = Double.parseDouble(parts[1]) * 1000000;
-                    double longitude = Double.parseDouble(parts[2]) * 1000000;
-
-                    bw.write(id + "," + String.format("%.7f", latitude) + "," + String.format("%.7f", longitude) + "\n");
-                    count++;
-                }
+            if (totalLines <= startLine) {
+                System.out.println("文件行数小于2^k1，跳过处理。");
+                return;
             }
 
-            System.out.println("Generated " + count + " entries in " + outputFile);
+            // 如果文件行数小于2^k2，则将endLine设为最后一行
+            if (totalLines < endLine) {
+                endLine = totalLines;
+            }
 
+            splitCsvFile(startLine, endLine);
+            System.out.println("CSV文件已拆分并保存到 " + OUTPUT_CSV_PATH);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static void splitCsvFile(long startLine, long endLine) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new FileReader(INPUT_CSV_PATH));
+             BufferedWriter writer = new BufferedWriter(new FileWriter(OUTPUT_CSV_PATH))) {
+
+            String line = reader.readLine();  // 读取并写入表头
+            writer.write(line);
+            writer.newLine();
+
+            long currentLine = 1;
+            while ((line = reader.readLine()) != null) {
+                if (currentLine >= startLine && currentLine <= endLine) {
+                    writer.write(line);
+                    writer.newLine();
+                }
+                currentLine++;
+
+                // 如果当前行已经超过endLine，停止读取文件
+                if (currentLine > endLine) {
+                    break;
+                }
+            }
+        }
+    }
+
+    private static long countLines(String filePath) throws IOException {
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            long lines = 0;
+            while (reader.readLine() != null) {
+                lines++;
+            }
+            return lines - 1; // 减去表头
         }
     }
 }
