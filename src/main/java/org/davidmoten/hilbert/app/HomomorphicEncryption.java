@@ -2,13 +2,18 @@ package org.davidmoten.hilbert.app;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.BitSet;
+import java.util.List;
 
 public class HomomorphicEncryption {
 
     private BigInteger n;
 
-    public BigInteger getN() { return n;}
+    public BigInteger getN() {
+        return n;
+    }
+
     public HomomorphicEncryption(int max_files) {
         // 初始化公共参数n
         this.n = BigInteger.valueOf(2).pow(max_files);
@@ -44,12 +49,14 @@ public class HomomorphicEncryption {
     public BigInteger processBitMapExistence(BitSet bitMap) {
         return new BigInteger(1, BitSetToByteArray(bitMap));//所有可能的位图数量为2^20+2^19+...=2^21-1 << 2^128，所以不会出现取模后冲突的情况
     }
+
     // 将 BigInteger 转换为 BitSet
     public BitSet BigIntegerToBitSet(BigInteger bigInt) {
         byte[] byteArray = bigInt.toByteArray();
         BitSet bitSet = BitSet.valueOf(byteArray);
         return bitSet;
     }
+
     // 将 BitSet 转换为字节数组
     private byte[] BitSetToByteArray(BitSet bitSet) {
         byte[] bytes = new byte[(bitSet.length() + 7) / 8];
@@ -60,25 +67,38 @@ public class HomomorphicEncryption {
         }
         return bytes;
     }
+
     public static void findIndexesOfOne(BigInteger number) {
-        // 初始设置的位索引
+        // 收集所有位索引
+        List<Integer> indexes = new ArrayList<>();
         int index = 0;
 
         // 遍历所有可能的位
         while (number.signum() != 0) {
             // 检查当前最低位是否为1
             if (number.and(BigInteger.ONE).equals(BigInteger.ONE)) {
-                // 打印当前位的索引
-                System.out.println(index);
+                // 收集当前位的索引
+                indexes.add(index);
             }
 
             // 右移一位处理下一位
             number = number.shiftRight(1);
             index++;
         }
+
+        // 打印结果
+        if (indexes.isEmpty()) {
+            System.out.println("没有找到1位。");
+        } else {
+            System.out.println("位图中1的位置索引为：");
+            for (Integer idx : indexes) {
+                System.out.println("索引: " + idx);
+            }
+        }
     }
+
     public static void main(String[] args) throws Exception {
-        int maxfiles = 1<<20;
+        int maxfiles = 1 << 20;
         HomomorphicEncryption he = new HomomorphicEncryption(maxfiles);
 
         BigInteger n = he.n;
@@ -125,27 +145,27 @@ public class HomomorphicEncryption {
         BigInteger decryptedSum = he.dec(skSum, encryptedSum);
         System.out.println("Decrypted Sum: " + decryptedSum.toString(2));
         // 打印所有设置为1的位的索引
+        System.out.println("当前存在文件: ");
         findIndexesOfOne(decryptedSum);
         // 如果1.成功, 现在以某种密文计算方式将 id1=123456 对应的比特位置置为0
 
-//        // 设计算法思路：
-//        // 1. 对于 id1 的位置，生成一个仅包含此位的 BitSet。
-//        BitSet id1BitSet = new BitSet((int) Math.pow(2, 20));
-//        id1BitSet.set(id1);
-//
-//        // 2. 对此位置执行同态加法以产生反向操作（将1变为0）。
-//        BigInteger processedBitMapToZero = he.processBitMapExistence(id1BitSet);
-//        BigInteger skZero = he.generateSecretKey();
-//        BigInteger encryptedBitMapToZero = he.enc(skZero, n.subtract(processedBitMapToZero));
-//
-//        // 3. 将此密文加到现有的加密总和中，从而将该位清零。
-//        BigInteger encryptedSumWithZero = he.add(encryptedSum, encryptedBitMapToZero);
-//        BigInteger skSumWithZero = skSum.add(skZero).mod(n);
-//        BigInteger decryptedSumWithZero = he.dec(skSumWithZero, encryptedSumWithZero);
-//
-//        // 检查 id1 是否被成功置为0
-//        BitSet finalDecryptedBitSet = BitSet.valueOf(decryptedSumWithZero.toByteArray());
-//        System.out.println("Final Bit at id1=123456: " + finalDecryptedBitSet.get(id1));
-//        System.out.println("Final Bit at id2=123457: " + finalDecryptedBitSet.get(id2));
+        // 删除文档id1,设计算法思路：
+        // 1. 对于 id1 的位置，生成一个仅包含此位的 BitSet。
+        BitSet id1BitSet = new BitSet(maxfiles);
+        System.out.println("删除文件: "+id1);
+        id1BitSet.set(id1);
+
+        // 2. 对此位置执行同态加法以产生反向操作（将1变为0）。
+        BigInteger processedBitMapToZero = he.processBitMapExistence(id1BitSet);
+        BigInteger skZero = he.generateSecretKey();
+        BigInteger encryptedBitMapToZero = he.enc(skZero, n.subtract(processedBitMapToZero));
+
+        // 3. 将此密文加到现有的加密总和中，从而将该位清零。
+        BigInteger encryptedSumWithZero = he.add(encryptedSum, encryptedBitMapToZero);
+        BigInteger skSumWithZero = skSum.add(skZero).mod(n);
+        BigInteger decryptedSumWithZero = he.dec(skSumWithZero, encryptedSumWithZero);
+        System.out.println("当前存在文件: ");
+        findIndexesOfOne(decryptedSumWithZero);
+
     }
 }
