@@ -1,4 +1,4 @@
-package org.davidmoten.hilbert.app;
+package org.davidmoten.quadtree;
 
 import org.davidmoten.bpc.BPCGenerator;
 import org.davidmoten.hilbert.HilbertComponent.HilbertCurve;
@@ -17,11 +17,18 @@ import java.util.*;
 import java.util.stream.Stream;
 
 public class DSSE {
-    private static final String HMAC_SHA256 = "HmacSHA256";
-    private static final int maxnums_w = 200;
     // 数据集路径
     private static final String FILE_PATH = "C:\\Users\\Admin\\Desktop\\SpatialDataSet\\osmfiles\\birminghan_large_final_1.csv";
     private static final int MAX_FILES = 1 << 20; // 2^20
+
+    private static BigInteger minX = BigInteger.ZERO;
+    private static BigInteger minY = BigInteger.ZERO;
+    private static BigInteger maxX = BigInteger.valueOf(1L << 17); // 2^17
+    private static BigInteger maxY = BigInteger.valueOf(1L << 17); // 2^17
+
+    //DSSE参数
+    private static final String HMAC_SHA256 = "HmacSHA256";
+    private static final int maxnums_w = 200;
     private String KS; // 主密钥
     private int lambda; // 公共参数
     private Map<String, Integer> T; // 计数器表
@@ -31,9 +38,8 @@ public class DSSE {
     private HashFunctions hashFunctions; // 哈希函数类实例
     private HomomorphicEncryption homomorphicEncryption; // 同态加密类实例
 
-    private int order; // Hilbert curve 阶数
-    private int dimension; // 2维数据
-    private HilbertCurve hilbertCurve;
+    private int order; // 四叉树深度
+    private Quadtree quadtree;
     private BPCGenerator bpcGenerator;
 
     // 构造函数
@@ -48,8 +54,7 @@ public class DSSE {
         this.hashFunctions = new HashFunctions();
 
         this.order = 17; // |P| = 17*2
-        this.dimension = 2;
-        this.hilbertCurve = HilbertCurve.bits(order).dimensions(dimension);
+        this.quadtree = new Quadtree(minX, minY, maxX, maxY, this.order);
         this.bpcGenerator = new BPCGenerator(order * 2);//因Hilbert曲线编码最大值为2^(2*order)
     }
 
@@ -73,29 +78,22 @@ public class DSSE {
     }
 
 
-    private List<String> preCode(long[] pSet) {
-        // 计算点的 Hilbert 索引
-        BigInteger pointHilbertIndex = this.hilbertCurve.index(pSet);
-
+    private List<String> preCode(BigInteger[] pSet) {
+        System.out.println("points: [" + pSet[0]+","+pSet[1]+"]");
+        // 计算点的 四叉树 编码值，然后将编码值转换为Biginteger
+        String quadtreeEncoding = this.quadtree.getEncodeString(pSet[0], pSet[1]);
+        System.out.println("quadtreeEncoding: " + quadtreeEncoding);
+        BigInteger quadtreeIndex = new BigInteger(quadtreeEncoding, 2); // Base 2 (binary) to BigInteger
         // 打印 Hilbert 索引的值
-        System.out.println("Hilbert Index (BigInteger): " + pointHilbertIndex);
+        System.out.println("quadtree Index (BigInteger): " + quadtreeIndex);
 
-        // 将 Hilbert 索引转换为二进制字符串，并确保其长度为 2 * order 位
-        String hilbertBinary = pointHilbertIndex.toString(2);
         int requiredLength = 2 * order;
-
-        // 如果二进制字符串长度不足，前面补0
-        hilbertBinary = String.format("%" + requiredLength + "s", hilbertBinary).replace(' ', '0');
-
-        // 打印二进制表示及其长度
-        System.out.println("Hilbert Index (Binary): " + hilbertBinary);
-        System.out.println("Length of Hilbert Binary: " + hilbertBinary.length());
 
         List<String> prefixList = new ArrayList<>();
 
         // 从完整的前缀开始，逐步减少长度
         for (int i = 0; i <= requiredLength; i++) {
-            String prefix = hilbertBinary.substring(0, requiredLength - i);
+            String prefix = quadtreeEncoding.substring(0, requiredLength - i);
             StringBuilder paddedPrefix = new StringBuilder(prefix);
 
             // 使用循环来替代 .repeat() 功能
@@ -158,7 +156,7 @@ public class DSSE {
     }
 
     // 更新操作
-    public void update(long[] pSet, String[] W, BigInteger B, int Cc) throws Exception {
+    public void update(BigInteger[] pSet, String[] W, BigInteger B, int Cc) throws Exception {
         System.out.println("Starting update operation...");
         System.out.println("Input pSet: " + Arrays.toString(pSet));
         System.out.println("Input W: " + Arrays.toString(W));
@@ -174,26 +172,16 @@ public class DSSE {
             String Kp = keys[0];
             String KpPrime = keys[1];
             int c = T.getOrDefault(p, -1);
-//            System.out.println("Processing prefix: " + p);
-//            System.out.println("Kp: " + Kp);
-//            System.out.println("KpPrime: " + KpPrime);
-//            System.out.println("Counter c: " + c);
 
             // 使用 DPRF.Derive获取Tp_c_plus_1
             String Tp_c_plus_1 = dprf.Derive(new SecretKeySpec(Kp.getBytes(StandardCharsets.UTF_8), HMAC_SHA256), c + 1);
-//            String Tp_c_plus_1 = HMAC_SHA256;
-//            System.out.println("Delegated Key: " + Base64.getEncoder().encodeToString(delegatedKey.getEncoded()));
-//            System.out.println("Tp_c_plus_1: " + Tp_c_plus_1);
+
 
             T.put(p, c + 1);
-//            System.out.println("Updated Counter for prefix " + p + ": " + T.get(p));
 
             String UTp_c_plus_1 = hashFunctions.H1(KpPrime, Tp_c_plus_1);
             BigInteger skp_c1 = hashFunctions.H2(KpPrime, c + 1);
             BigInteger ep_c1 = homomorphicEncryption.enc(skp_c1, B);
-//            System.out.println("UTp_c_plus_1: " + UTp_c_plus_1);
-//            System.out.println("skp_c1: " + skp_c1);
-//            System.out.println("Encrypted value ep_c1: " + ep_c1);
 
             SDB.put(UTp_c_plus_1, ep_c1);
         }
@@ -203,16 +191,10 @@ public class DSSE {
             String Kw = keys[0];
             String KwPrime = keys[1];
             int c = T.getOrDefault(w, -1);
-//            System.out.println("Processing keyword: " + w);
-//            System.out.println("Kw: " + Kw);
-//            System.out.println("KwPrime: " + KwPrime);
-//            System.out.println("Counter c: " + c);
 
             // 使用 DPRF 来生成 DelKey 和 Derive
             String Tw_c1 = dprf.Derive(new SecretKeySpec(Kw.getBytes(StandardCharsets.UTF_8), HMAC_SHA256), c + 1);
-//            String Tw_c1 = HMAC_SHA256;
-//            System.out.println("Delegated Key: " + Base64.getEncoder().encodeToString(delegatedKey.getEncoded()));
-//            System.out.println("Tw_c1: " + Tw_c1);
+
 
             T.put(w, c + 1);
 //            System.out.println("Updated Counter for keyword " + w + ": " + T.get(w));
@@ -220,9 +202,6 @@ public class DSSE {
             String UTw_c1 = hashFunctions.H1(KwPrime, Tw_c1);
             BigInteger skw_c1 = hashFunctions.H2(KwPrime, c + 1);
             BigInteger ew_c1 = homomorphicEncryption.enc(skw_c1, B);
-//            System.out.println("UTw_c1: " + UTw_c1);
-//            System.out.println("skw_c1: " + skw_c1);
-//            System.out.println("Encrypted value ew_c1: " + ew_c1);
 
             KDB.put(UTw_c1, ew_c1);
         }
@@ -388,9 +367,9 @@ public class DSSE {
         // id 转换为位图B
         BigInteger id = new BigInteger(columns[0]);
         // x 和 y 转换为 long[] pSet
-        long x = Long.parseLong(columns[1]);
-        long y = Long.parseLong(columns[2]);
-        long[] pSet = new long[]{x, y};
+        BigInteger x = new BigInteger(columns[1]);
+        BigInteger y = new BigInteger(columns[2]);
+        BigInteger[] pSet = new BigInteger[]{x, y};
 
         // key1 到 key12 转换为 String[] W
         String[] W = new String[W_num];
@@ -439,7 +418,7 @@ public class DSSE {
             // 对此位置执行同态加法以产生反向操作（将1变为0）,update时，将该值视为B
             BigInteger B_deleteId = dsse.homomorphicEncryption.getN().subtract(B);
 
-            long[] pSet = (long[]) result[1];
+            BigInteger[] pSet = (BigInteger[]) result[1];
             String[] W = (String[]) result[2];
 
             // 创建 DecimalFormat 实例以格式化毫秒输出
