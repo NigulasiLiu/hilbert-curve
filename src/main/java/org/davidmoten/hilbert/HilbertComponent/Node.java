@@ -1,4 +1,4 @@
-package org.davidmoten.hilbert.HilbertComponent;
+package org.davidmoten.Hilbert.HilbertComponent;
 
 import com.github.davidmoten.guavamini.Preconditions;
 

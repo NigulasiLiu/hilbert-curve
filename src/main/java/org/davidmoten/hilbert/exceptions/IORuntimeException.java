@@ -1,4 +1,4 @@
-package org.davidmoten.hilbert.exceptions;
+package org.davidmoten.Hilbert.exceptions;
 
 import java.io.IOException;
 

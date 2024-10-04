@@ -1,4 +1,4 @@
-package org.davidmoten.bpc;
+package org.davidmoten.BPC;
 
 import java.math.BigInteger;
 import java.util.*;
