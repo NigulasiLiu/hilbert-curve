@@ -92,7 +92,7 @@ public class SPQS_BITSET {
         BigInteger pointHilbertIndex = this.hilbertCurve.index(pSet);
 
         // 打印 Hilbert 索引的值
-        System.out.println("Hilbert Index (BigInteger): " + pointHilbertIndex);
+//        System.out.println("Hilbert Index (BigInteger): " + pointHilbertIndex);
 
         // 将 Hilbert 索引转换为二进制字符串，并确保其长度为 2 * order 位
         String hilbertBinary = pointHilbertIndex.toString(2);
@@ -154,7 +154,7 @@ public class SPQS_BITSET {
             String bpc_string = this.bpcGenerator.toBinaryStringWithStars(result, order * 2, this.bpcGenerator.shiftCounts.get(result));
             BinaryResults.add(bpc_string);
         }
-        System.out.println("BPC2:" + BinaryResults);
+//        System.out.println("BPC2:" + BinaryResults);
         return BinaryResults;
     }
 
@@ -167,129 +167,6 @@ public class SPQS_BITSET {
     public void setup(int lambda, int n) {
         System.out.println("Setup complete with λ = " + lambda + ", n = " + n);
     }
-
-    // 更新操作
-//    public void ObjectUpdate(long[] pSet, String[] W, String op, int[] files, int CounterLimits) throws Exception {
-//        System.out.println("Starting update operation...");
-////        System.out.println("Input pSet: " + Arrays.toString(pSet));
-////        System.out.println("Input W: " + Arrays.toString(W));
-//        long totalLoopTime = 0; // 初始化总时间变量
-//        // 记录开始时间
-//        long startTime = System.nanoTime();
-//        List<String> P = preCode(pSet);
-////        System.out.println("PreCode P: " + P);
-//        long precodeTime = System.nanoTime() - startTime;
-//        System.out.println("PreCode time: " + precodeTime + " ns (" + (precodeTime/1_000_000.0) + " ms).");
-//        for (String p : P) {
-//            //update(p, op, files);
-//            // 记录单次循环的开始时间
-//            long loopStartTime = System.nanoTime();
-//            //Client
-//            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
-//            byte[] Kw = new byte[LAMBDA / 8];
-//            byte[] Kw_prime = new byte[LAMBDA / 8];
-//            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
-//            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
-//
-//            // Step 2: 获取客户端的当前关键词状态
-//            int[] state = SC.getOrDefault(p, new int[]{0, -1, getRandomFromPool()});
-//            // Step 3: 随机生成 Rc+1
-//            int Rc_plus_1 = getRandomFromPool();
-//
-//            // Step 4: 计算 I,C = hashFunction(Kw, Rc_plus_1) ⊕ state[2]
-//            byte[] I = hashFunction(Kw, Rc_plus_1); // 根据Kw和Rc+1计算索引I
-//            byte[] C = xorBytes(hashFunction(Kw, Rc_plus_1), intToBytes(state[2]));
-//            // Step 5: 根据操作选择 bi-bitmap (bsa, bsb)
-//            BigInteger bsa = BigInteger.ZERO;  // 使用 BigInteger 作为位图
-//            BigInteger bsb = BigInteger.ZERO;
-//
-//            // 根据操作设置 bsa 和 bsb
-//            for (int fileIndex : files) {
-//                if ("add".equals(op)) {
-//                    bsa = bsa.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
-//                    bsb = bsb.setBit(fileIndex);  // 添加操作，设置bsb中相应位为1
-//                } else if ("del".equals(op)) {
-//                    bsa = bsa.setBit(fileIndex);  // 删除操作，设置bsa中相应位为1
-//                    //bsb = bsb.clearBit(fileIndex);  // 删除操作，清除bsb中相应位（设置为0）
-//                }
-//            }
-//            // Step 6: 加密 bsa 和 bsb，不使用加密函数，而是和 hashFunction(Kw_prime, state[1] + 1) 异或
-//            BigInteger hashKw_prime = new BigInteger(1, hashFunction(Kw_prime, state[1] + 1));
-//            BigInteger ea = bsa.xor(hashKw_prime);
-//            BigInteger eb = bsb.xor(hashKw_prime);
-//            // 记录结束时间并计算本次迭代的耗时
-//            long loopEndTime = System.nanoTime();
-//            long loopDurationNs = loopEndTime - loopStartTime;
-//            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
-//
-//            double loopDurationMs = loopDurationNs / 1_000_000.0;
-////            System.out.println(op + " operation took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
-//
-//            // Step 7: 更新客户端状态
-//            SC.put(p, new int[]{state[0], state[1] + 1, Rc_plus_1});
-//            //Server
-//            // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
-//            PDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, ea, eb});
-//        }
-//        for (String w : W) {
-//            //update(p, op, files);
-//            // 记录单次循环的开始时间
-//            long loopStartTime = System.nanoTime();
-//            //Client
-//            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
-//            byte[] Kw = new byte[LAMBDA / 8];
-//            byte[] Kw_prime = new byte[LAMBDA / 8];
-//            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
-//            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
-//
-//            // Step 2: 获取客户端的当前关键词状态
-//            int[] state = SC.getOrDefault(w, new int[]{0, -1, getRandomFromPool()});
-//            // Step 3: 随机生成 Rc+1
-//            int Rc_plus_1 = getRandomFromPool();
-//
-//            // Step 4: 计算 I,C = hashFunction(Kw, Rc_plus_1) ⊕ state[2]
-//            byte[] I = hashFunction(Kw, Rc_plus_1); // 根据Kw和Rc+1计算索引I
-//            byte[] C = xorBytes(hashFunction(Kw, Rc_plus_1), intToBytes(state[2]));
-//            // Step 5: 根据操作选择 bi-bitmap (bsa, bsb)
-//            BigInteger bsa = BigInteger.ZERO;  // 使用 BigInteger 作为位图
-//            BigInteger bsb = BigInteger.ZERO;
-//
-//            // 根据操作设置 bsa 和 bsb
-//            for (int fileIndex : files) {
-//                if ("add".equals(op)) {
-//                    bsa = bsa.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
-//                    bsb = bsb.setBit(fileIndex);  // 添加操作，设置bsb中相应位为1
-//                } else if ("del".equals(op)) {
-//                    bsa = bsa.setBit(fileIndex);  // 删除操作，设置bsa中相应位为1
-//                    //bsb = bsb.clearBit(fileIndex);  // 删除操作，清除bsb中相应位（设置为0）
-//                }
-//            }
-//            // Step 6: 加密 bsa 和 bsb，不使用加密函数，而是和 hashFunction(Kw_prime, state[1] + 1) 异或
-//            BigInteger hashKw_prime = new BigInteger(1, hashFunction(Kw_prime, state[1] + 1));
-//            BigInteger ea = bsa.xor(hashKw_prime);
-//            BigInteger eb = bsb.xor(hashKw_prime);
-//            // 记录结束时间并计算本次迭代的耗时
-//            long loopEndTime = System.nanoTime();
-//            long loopDurationNs = loopEndTime - loopStartTime;
-//            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
-//
-//            double loopDurationMs = loopDurationNs / 1_000_000.0;
-////            System.out.println(op + " operation took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
-//
-//            // Step 7: 更新客户端状态
-//            SC.put(w, new int[]{state[0], state[1] + 1, Rc_plus_1});
-//            //Server
-//            // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
-//            KDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, ea, eb});
-//        }
-//
-//        // 输出总耗时
-//        double totalLoopTimeMs = totalLoopTime / 1_000_000.0;
-//        System.out.println("Total loop time: " + totalLoopTime + " ns (" + totalLoopTimeMs + " ms).");
-//        System.out.println("Total update time: " + (totalLoopTime+precodeTime) + " ns (" + (totalLoopTimeMs+(precodeTime/1_000_000.0)) + " ms).");
-//
-//        System.out.println("Update operation completed.");
-//    }
 
     public BigInteger ObjectSearch(BigInteger R_min, BigInteger R_max, String[] WQ) throws Exception {
         long totalLoopTime = 0; // 初始化总时间变量
@@ -385,9 +262,9 @@ public class SPQS_BITSET {
                 BigInteger eb = encryptPDBiBitmap[1];
 
                 BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kw_prime, i));
-                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
+//                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
                 BigInteger bsa = ea.xor(hashKw_prime_H3);
-                BigInteger bsb = eb.xor(hashKw_prime_H4);
+                BigInteger bsb = eb.xor(hashKw_prime_H3);
 
                 // 更新bsw,not按位取反，negate取负数
                 bsp = bsp.and(bsa.not()).xor(bsa.and(bsb));
@@ -423,7 +300,7 @@ public class SPQS_BITSET {
             totalClientTime += msclient_time1 + msclient_time2;
             totalServerTime += msserver_time;
             double total_time = msclient_time1 + msclient_time2 + msserver_time;
-            System.out.println("prefix encode: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
+//            System.out.println("prefix encode: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
 
 //            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
             Sump = Sump.or(bsp);
@@ -461,9 +338,9 @@ public class SPQS_BITSET {
             long server_time1 = System.nanoTime();
 
             // Step 1: 检查 SS[Kw] 的状态 (服务器)
-            BigInteger ew;
             // 如果不存在，则初始化为全0的BigInteger
-            ew = SS.getOrDefault(new String(Kw, StandardCharsets.UTF_8), BigInteger.ZERO); // 从SS中读取
+
+            BigInteger ew = SS.getOrDefault(new String(Kw, StandardCharsets.UTF_8), BigInteger.ZERO); // 从SS中读取
             // Step 2: 初始化一个空的map来存储结果E (服务器)
             Map<Integer, BigInteger[]> E = new HashMap<>();
 
@@ -551,7 +428,7 @@ public class SPQS_BITSET {
             totalClientTime += msclient_time1 + msclient_time2;
             totalServerTime += msserver_time;
             double total_time = msclient_time1 + msclient_time2 + msserver_time;
-            System.out.println("keyword: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
+//            System.out.println("keyword: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
 
 //            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
             Sumw = Sumw.or(bsw);
@@ -561,18 +438,21 @@ public class SPQS_BITSET {
         serverSearchTimes.add(totalServerTime);
         // 输出总耗时
         double totalLoopTimeMs = totalLoopTime / 1_000_000.0;
-        System.out.println("Total loop time: " + totalLoopTime + " ns (" + totalLoopTimeMs + " ms).");
-        System.out.println("SPQS_BITSET Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1_000_000.0)) + " ms).");
+//        System.out.println("Total loop time: " + totalLoopTime + " ns (" + totalLoopTimeMs + " ms).");
+//        System.out.println("SPQS_BITSET Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1_000_000.0)) + " ms).");
         return Sump.and(Sumw);
     }
     public void ObjectUpdate(long[] pSet, String[] W, String op, int[] files, int CounterLimits) throws Exception {
+        byte[] combinedKey;
+        byte[] Kw;
+        byte[] Kw_prime;
         long startTime = System.nanoTime();
         List<String> P = preCode(pSet);
         for (String p : P) {
             //Client
-            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
-            byte[] Kw = new byte[LAMBDA / 8];
-            byte[] Kw_prime = new byte[LAMBDA / 8];
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
+            Kw = new byte[LAMBDA / 8];
+            Kw_prime = new byte[LAMBDA / 8];
             System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
             System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
 
@@ -598,20 +478,20 @@ public class SPQS_BITSET {
                 }
             }
             // Step 6: 加密 bsa 和 bsb，不使用加密函数，而是和 hashFunction(Kw_prime, state[1] + 1) 异或
-            BigInteger hashKw_prime = new BigInteger(1, hashFunction(Kw_prime, state[1] + 1));
-            BigInteger ea = (bsa.toBigInteger()).xor(hashKw_prime);
-            BigInteger eb = (bsb.toBigInteger()).xor(hashKw_prime);
+            BigInteger ea = bsa.xor(hashFunction(Kw_prime, state[1] + 1));
+            BigInteger eb = bsb.xor(hashFunction(Kw_prime, state[1] + 1));
             // Step 7: 更新客户端状态
             SC.put(p, new int[]{state[0], state[1] + 1, Rc_plus_1});
             //Server
             // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
             PDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, ea, eb});
         }
+        long pTime = System.nanoTime();
         for (String w : W) {
             //Client
-            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
-            byte[] Kw = new byte[LAMBDA / 8];
-            byte[] Kw_prime = new byte[LAMBDA / 8];
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
+            Kw = new byte[LAMBDA / 8];
+            Kw_prime = new byte[LAMBDA / 8];
             System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
             System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
 
@@ -636,22 +516,25 @@ public class SPQS_BITSET {
                 }
             }
             // Step 6: 加密 bsa 和 bsb，不使用加密函数，而是和 hashFunction(Kw_prime, state[1] + 1) 异或
-            BigInteger hashKw_prime = new BigInteger(1, hashFunction(Kw_prime, state[1] + 1));
-            BigInteger ea = (bsa.toBigInteger()).xor(hashKw_prime);
-            BigInteger eb = (bsb.toBigInteger()).xor(hashKw_prime);
+            BigInteger ea = bsa.xor(hashFunction(Kw_prime, state[1] + 1));
+            BigInteger eb = bsb.xor(hashFunction(Kw_prime, state[1] + 1));
             // Step 7: 更新客户端状态
             SC.put(w, new int[]{state[0], state[1] + 1, Rc_plus_1});
             //Server
             // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
             KDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, ea, eb});
         }
+        long wTime = System.nanoTime();
 
         // 输出总耗时
         double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
+//        System.out.println("SPQS_BITSET Total update time: " + totalLoopTimeMs + " ms.");
+        System.out.println("SPQS_BITSET ptime: " + (pTime-startTime) / 1_000_000.0 + " ms.");
+        System.out.println("SPQS_BITSET wtime: " + (wTime-pTime) / 1_000_000.0 + " ms.");
         System.out.println("SPQS_BITSET Total update time: " + totalLoopTimeMs + " ms.");
         // 存储到列表中
         totalUpdateTimes.add(totalLoopTimeMs);
-        System.out.println("Update operation completed.");
+//        System.out.println("Update operation completed.");
     }
 
     public static Object[] GetRandomItem(int W_num,String FILE_PATH) throws IOException {
@@ -701,13 +584,13 @@ public class SPQS_BITSET {
         }
 
         // 输出结果
-        System.out.println("文件id: " + id);
-        System.out.println("pSet: [x=" + pSet[0] + ", y=" + pSet[1] + "]");
-        System.out.print("W: [");
-        for (String w : W) {
-            System.out.print((w != null ? w : "null") + " ");
-        }
-        System.out.println("]");
+//        System.out.println("文件id: " + id);
+//        System.out.println("pSet: [x=" + pSet[0] + ", y=" + pSet[1] + "]");
+//        System.out.print("W: [");
+//        for (String w : W) {
+//            System.out.print((w != null ? w : "null") + " ");
+//        }
+//        System.out.println("]");
 
         // 返回pSet和W
         return new Object[]{id, pSet, W};
@@ -816,7 +699,23 @@ public class SPQS_BITSET {
     public double getAverageServerTime() {
         return serverSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
-
+    public void removeFirstUpdateTime() {
+        if (!totalUpdateTimes.isEmpty()) {
+            totalUpdateTimes.remove(0);
+//            System.out.println("已移除 totalUpdateTimes 中的第一个元素。");
+        } else {
+            System.out.println("totalUpdateTimes 列表为空，无法移除。");
+        }
+    }
+    public void removeFirstSearchTime() {
+        if (!clientSearchTimes.isEmpty()||!serverSearchTimes.isEmpty()) {
+            clientSearchTimes.remove(0);
+            serverSearchTimes.remove(0);
+//            System.out.println("已移除 clientSearchTimes和serverSearchTimes 中的第一个元素。");
+        } else {
+            System.out.println("列表为空，无法移除。");
+        }
+    }
     // 打印 update 和 search 的时间列表
     public void printTimes() {
         System.out.println("Update Times:");
@@ -835,20 +734,31 @@ public class SPQS_BITSET {
         }
         System.out.println();
     }
-    // 测试SR-DSSE算法的运行
+    public void batchObjectUpdate(List<long[]> pSets, List<String[]> WList, List<int[]> filesList, int batchSize) throws Exception {
+        int totalUpdates = pSets.size();
+
+        for (int i = 0; i < totalUpdates; i += batchSize) {
+            // 每次处理一个批次
+            int end = Math.min(i + batchSize, totalUpdates);
+            for (int j = i; j < end; j++) {
+                long[] pSet = pSets.get(j);
+                String[] W = WList.get(j);
+                int[] files = filesList.get(j);
+                ObjectUpdate(pSet, W, "add", files, 1000);
+            }
+
+            // 清理已完成的批次（可以考虑清理缓存或触发GC等）
+            System.gc();
+            System.out.println("Completed batch " + (i / batchSize + 1) + " of updates.");
+        }
+    }
+
+    // 测试算法的运行
     public static void main(String[] args) throws Exception {
 
-        SPQS_BITSET spqs = new SPQS_BITSET(1<<20, 16, 2);
+        SPQS_BITSET spqs = new SPQS_BITSET(1<<20, 17, 2);
 
-        // 测试 update 操作
-        for (int i = 0; i < 1; i++) {
-            long[] pSet = {i, i + 1};
-            String[] W = {"keyword1", "keyword2"};
-            int[] files = {i};
-            spqs.ObjectUpdate(pSet, W, "add", files, 1000);
-        }
-
-        // 测试 search 操作
+        // 测试 search 操作,本次search的时间丢弃
         BigInteger R_min = BigInteger.valueOf(1);
         BigInteger R_max = BigInteger.valueOf(100);
         String[] WQ = {"keyword1", "keyword2"};
@@ -856,8 +766,21 @@ public class SPQS_BITSET {
             spqs.ObjectSearch(R_min, R_max, WQ);
         }
 
+        // 测试 update 操作
+        for (int i = 0; i < 2; i++) {
+            long[] pSet = {i, i + 1};
+            String[] W = {"keyword"+(i+1), "keyword"+(i+2)};
+            int[] files = {i};
+            spqs.ObjectUpdate(pSet, W, "add", files, 1000);
+        }
+
+        for (int i = 0; i < 1; i++) {
+            spqs.ObjectSearch(R_min, R_max, WQ);
+        }
         // 打印时间列表中的所有值
         spqs.printTimes();
+        spqs.removeFirstUpdateTime();
+        spqs.removeFirstSearchTime();
         // 输出平均值
         System.out.println("平均更新耗时: " + spqs.getAverageUpdateTime() + " ms");
         System.out.println("平均查询客户端耗时: " + spqs.getAverageClientTime() + " ms");

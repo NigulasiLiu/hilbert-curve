@@ -88,7 +88,7 @@ public class TDSC2023_BITSET {
         BigInteger pointHilbertIndex = this.hilbertCurve.index(pSet);
 
         // 打印 Hilbert 索引的值
-        System.out.println("Hilbert Index (BigInteger): " + pointHilbertIndex);
+//        System.out.println("Hilbert Index (BigInteger): " + pointHilbertIndex);
 
         // 将 Hilbert 索引转换为二进制字符串，并确保其长度为 2 * order 位
         String hilbertBinary = pointHilbertIndex.toString(2);
@@ -99,7 +99,7 @@ public class TDSC2023_BITSET {
 
         // 打印二进制表示及其长度
 //        System.out.println("Hilbert Index (Binary): " + hilbertBinary);
-        System.out.println("Length of Hilbert Binary: " + hilbertBinary.length());
+//        System.out.println("Length of Hilbert Binary: " + hilbertBinary.length());
 
         List<String> prefixList = new ArrayList<>();
 
@@ -168,12 +168,12 @@ public class TDSC2023_BITSET {
 
     // 更新操作
     public void update(long[] pSet, String[] W, String op, int[] files, int CounterLimits) throws Exception {
-        System.out.println("Starting update operation...");
-        System.out.println("Input pSet: " + Arrays.toString(pSet));
-        System.out.println("Input W: " + Arrays.toString(W));
+//        System.out.println("Starting update operation...");
+//        System.out.println("Input pSet: " + Arrays.toString(pSet));
+//        System.out.println("Input W: " + Arrays.toString(W));
 //        System.out.println("BitMap: " + B);
 //        System.out.println("BitMap_Op: " + BitMap_Op);
-        System.out.println("CounterLimits: " + CounterLimits);
+//        System.out.println("CounterLimits: " + CounterLimits);
 
         // 记录开始时间
         long startTime = System.nanoTime();
@@ -206,6 +206,7 @@ public class TDSC2023_BITSET {
             BigInteger ep_c1 = homomorphicEncryption.enc(skp_c1, b.toBigInteger());
             SDB.put(UTp_c_plus_1, ep_c1);
         }
+        long pTime = System.nanoTime();
 
         for (String w : W) {
             String[] keys = F_K_sigma(KS, w);
@@ -231,13 +232,16 @@ public class TDSC2023_BITSET {
             BigInteger ew_c1 = homomorphicEncryption.enc(skw_c1, b.toBigInteger());
             KDB.put(UTw_c1, ew_c1);
         }
+        long wTime = System.nanoTime();
         // 输出总耗时
         double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
-        System.out.println("TDSC2023_BITSET Total update time: " + totalLoopTimeMs + " ms).");
+//        System.out.println("TDSC2023_BITSET Total update time: " + totalLoopTimeMs + " ms).");
+        System.out.println("TDSC2023_BITSET ptime: " + (pTime-startTime) / 1_000_000.0 + " ms.");
+        System.out.println("TDSC2023_BITSET wtime: " + (wTime-pTime) / 1_000_000.0 + " ms.");
 
         // 存储到列表中
         totalUpdateTimes.add(totalLoopTimeMs);
-        System.out.println("Update operation completed.");
+//        System.out.println("Update operation completed.");
     }
     // 整合客户端和服务器的搜索操作
     public BigInteger Search(BigInteger R_min, BigInteger R_max, String[] WQ) throws Exception {
@@ -361,14 +365,14 @@ public class TDSC2023_BITSET {
         }
         // 输出总耗时
         double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
-        System.out.println("TDSC2023_BITSET Total search time: " + totalLoopTimeMs + " ms).");
+//        System.out.println("TDSC2023_BITSET Total search time: " + totalLoopTimeMs + " ms).");
         // 客户端部分结束计时
         long server_time2 = System.nanoTime();
         // 输出客户端和服务器端的时间消耗
         double msclient_time1 = (client_time2 - startTime) / 1_000_000.0;
         double msserver_time = (server_time2 - client_time2) / 1_000_000.0;
         double total_time = msclient_time1 + msserver_time;
-        System.out.println("TDSC: Client time part 1: " + msclient_time1 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
+//        System.out.println("TDSC: Client time part 1: " + msclient_time1 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
 
         // 存储到列表中
         clientSearchTimes.add(msclient_time1);
@@ -434,7 +438,23 @@ public class TDSC2023_BITSET {
         // 返回pSet和W
         return new Object[]{id, pSet, W};
     }
-
+    public void removeFirstUpdateTime() {
+        if (!totalUpdateTimes.isEmpty()) {
+            totalUpdateTimes.remove(0);
+//            System.out.println("已移除 totalUpdateTimes 中的第一个元素。");
+        } else {
+            System.out.println("totalUpdateTimes 列表为空，无法移除。");
+        }
+    }
+    public void removeFirstSearchTime() {
+        if (!clientSearchTimes.isEmpty()||!serverSearchTimes.isEmpty()) {
+            clientSearchTimes.remove(0);
+            serverSearchTimes.remove(0);
+            System.out.println("已移除 clientSearchTimes和serverSearchTimes 中的第一个元素。");
+        } else {
+            System.out.println("列表为空，无法移除。");
+        }
+    }
     // 获取更新操作的平均时间
     public double getAverageUpdateTime() {
         return totalUpdateTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
@@ -546,24 +566,26 @@ public class TDSC2023_BITSET {
 //            }
 //        }
 
-        TDSC2023_BITSET tdsc2023 = new TDSC2023_BITSET(128, 200, 500, 16, 2);
+        TDSC2023_BITSET tdsc2023 = new TDSC2023_BITSET(128, 20000, 1<<20, 16, 2);
 
         // 测试 update 操作
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 300; i++) {
             long[] pSet = {i, i + 1};
-            String[] W = {"keyword1", "keyword2"};
+            String[] W = {"keyword"+(i+1), "keyword"+(i+2)};
             int[] files = {i};
-            tdsc2023.update(pSet, W, "add", files, 1000);
+            tdsc2023.update(pSet, W, "add", files, 20000);
         }
 
         // 测试 search 操作
         BigInteger R_min = BigInteger.valueOf(1);
         BigInteger R_max = BigInteger.valueOf(100);
         String[] WQ = {"keyword1", "keyword2"};
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 2; i++) {
             tdsc2023.Search(R_min, R_max, WQ);
         }
 
+        tdsc2023.removeFirstUpdateTime();
+        tdsc2023.removeFirstSearchTime();
         // 打印时间列表中的所有值
         tdsc2023.printTimes();
         // 输出平均值

@@ -40,6 +40,16 @@ public class B {
         }
     }
 
+    // 接受 byte[] 参数的与操作，并返回结果的 BigInteger
+//    public BigInteger and(byte[] other) {
+//        if (other.length != bits.length) throw new IllegalArgumentException("Sizes must match");
+//        byte[] result = new byte[bits.length];
+//        for (int i = 0; i < bits.length; i++) {
+//            result[i] = (byte) (this.bits[i] & other[i]);
+//        }
+//        return new BigInteger(1, result);
+//    }
+
     // 或操作：this | other
     public void or(B other) {
         if (this.size != other.size) throw new IllegalArgumentException("Sizes must match");
@@ -47,6 +57,16 @@ public class B {
             this.bits[i] |= other.bits[i];
         }
     }
+
+    // 接受 byte[] 参数的或操作，并返回结果的 BigInteger
+//    public BigInteger or(byte[] other) {
+//        if (other.length != bits.length) throw new IllegalArgumentException("Sizes must match");
+//        byte[] result = new byte[bits.length];
+//        for (int i = 0; i < bits.length; i++) {
+//            result[i] = (byte) (this.bits[i] | other[i]);
+//        }
+//        return new BigInteger(1, result);
+//    }
 
     // 异或操作：this ^ other
     public void xor(B other) {
@@ -56,11 +76,79 @@ public class B {
         }
     }
 
+    // 接受 byte[] 参数的异或操作，并返回结果的 BigInteger
+//    public BigInteger xor(byte[] other) {
+//        if (other.length != bits.length) throw new IllegalArgumentException("Sizes must match");
+//        byte[] result = new byte[bits.length];
+//        for (int i = 0; i < bits.length; i++) {
+//            result[i] = (byte) (this.bits[i] ^ other[i]);
+//        }
+//        return new BigInteger(1, result);
+//    }
+    // 异或操作：this ^ other
+    public BigInteger xor(byte[] other) {
+        int maxLength = Math.max(this.bits.length, other.length);
+
+        // 扩展本地 bits 和 other 到相同的长度
+        byte[] extendedBits = extendByteArray(this.bits, maxLength);
+        byte[] extendedOther = extendByteArray(other, maxLength);
+
+        byte[] result = new byte[maxLength];
+        for (int i = 0; i < maxLength; i++) {
+            result[i] = (byte) (extendedBits[i] ^ extendedOther[i]);
+        }
+        return new BigInteger(1, result); // 返回正数的 BigInteger
+    }
+    // 与操作：this & other
+    public BigInteger and(byte[] other) {
+        int maxLength = Math.max(this.bits.length, other.length);
+
+        // 扩展本地 bits 和 other 到相同的长度
+        byte[] extendedBits = extendByteArray(this.bits, maxLength);
+        byte[] extendedOther = extendByteArray(other, maxLength);
+
+        byte[] result = new byte[maxLength];
+        for (int i = 0; i < maxLength; i++) {
+            result[i] = (byte) (extendedBits[i] & extendedOther[i]);
+        }
+        return new BigInteger(1, result); // 返回正数的 BigInteger
+    }
+
+    // 或操作：this | other
+    public BigInteger or(byte[] other) {
+        int maxLength = Math.max(this.bits.length, other.length);
+
+        // 扩展本地 bits 和 other 到相同的长度
+        byte[] extendedBits = extendByteArray(this.bits, maxLength);
+        byte[] extendedOther = extendByteArray(other, maxLength);
+
+        byte[] result = new byte[maxLength];
+        for (int i = 0; i < maxLength; i++) {
+            result[i] = (byte) (extendedBits[i] | extendedOther[i]);
+        }
+        return new BigInteger(1, result); // 返回正数的 BigInteger
+    }
+    // 辅助方法：扩展 byte[] 数组到指定长度，前面补 0
+    private byte[] extendByteArray(byte[] original, int newLength) {
+        byte[] extended = new byte[newLength];
+        System.arraycopy(original, 0, extended, newLength - original.length, original.length);
+        return extended;
+    }
+
     // 取反操作：~this
     public void not() {
         for (int i = 0; i < bits.length; i++) {
             bits[i] = (byte) ~bits[i];
         }
+    }
+
+    // 返回取反后的 BigInteger 结果
+    public BigInteger notToBigInteger() {
+        byte[] result = new byte[bits.length];
+        for (int i = 0; i < bits.length; i++) {
+            result[i] = (byte) ~bits[i];
+        }
+        return new BigInteger(1, result);
     }
 
     // 查找所有1所在的位置的下标
@@ -103,6 +191,7 @@ public class B {
     public byte[] getBytes() {
         return bits;
     }
+
     public static void main(String[] args) {
         // 创建一个长度为 1<<20 的 B 实例
         B bitset = new B(1 << 20);
@@ -112,26 +201,24 @@ public class B {
         bitset.setBit(10);
 
         // 打印当前 bit 串
-//        bitset.printBits();
+        bitset.printBits();
 
-        // 查找所有1的下标
-        List<Integer> indices = bitset.findIndexofOne();
-        System.out.println("1所在的位置: " + indices);
+        // 进行与操作
+        byte[] otherBits = new byte[(1 << 20) / 8];
+        otherBits[0] = (byte) 0xFF; // 设置部分字节为 1
+        BigInteger andResult = bitset.and(otherBits);
+        System.out.println("And Result: " + andResult);
 
-        // 将 bitset 转换为 BigInteger
-        BigInteger bigIntValue = bitset.toBigInteger();
-//        System.out.println("BigInteger 值: " + bigIntValue);
+        // 进行或操作
+        BigInteger orResult = bitset.or(otherBits);
+        System.out.println("Or Result: " + orResult);
 
-        // 创建一个新的 B 实例并从 BigInteger 恢复
-        B newBitset = new B(1 << 20);
-        newBitset.fromBigInteger(bigIntValue);
+        // 进行异或操作
+        BigInteger xorResult = bitset.xor(otherBits);
+        System.out.println("Xor Result: " + xorResult);
 
-        // 打印从 BigInteger 恢复的 bit 串
-//        newBitset.printBits();
-
-        // 再次查找所有1的下标
-        indices = newBitset.findIndexofOne();
-        System.out.println("恢复后1所在的位置: " + indices);
+        // 进行取反操作
+        BigInteger notResult = bitset.notToBigInteger();
+        System.out.println("Not Result: " + notResult);
     }
-
 }

@@ -17,11 +17,13 @@ public class RunningTimeExp_BITSET_MANYOBJECTS {
         List<Integer> kList = Arrays.asList(4); // 随机选取的关键字数量
         List<Integer> lList = Arrays.asList(419430); // R_min 和 R_max 之间的差距
         List<Integer> expTimesList = Arrays.asList(1); // 实验次数
-        List<Integer> insertions = Arrays.asList(20000,40000,60000,80000,100000); // 实验次数
+        List<Integer> insertions = Arrays.asList(1,40000,60000,80000,100000); // 实验次数
         List<Integer> maxfilesList = Arrays.asList(1 << 20); // 文件数量
         List<Integer> orderList = Arrays.asList(16); // Hilbert curve 级别
-        List<String> schemes = Arrays.asList("SPQS_BITSET", "TDSC2023_BITSET");  // 待测试方案列表
+        List<String> schemes = Arrays.asList("SPQS_BITSET");  // 待测试方案列表
 
+        SPQS_BITSET spqs = new SPQS_BITSET(maxfilesList.get(0),orderList.get(0), 2);
+        TDSC2023_BITSET tdsc2023_BITSET = new TDSC2023_BITSET(128, 10000, maxfilesList.get(0), orderList.get(0), 2);
         // 遍历所有的 k 和 maxfiles 组合
         for (int k : kList) {
             for (int maxfiles : maxfilesList) {
@@ -43,11 +45,9 @@ public class RunningTimeExp_BITSET_MANYOBJECTS {
                                 try (PrintStream out = new PrintStream(Files.newOutputStream(Paths.get(fileName)))) {
                                     // 创建不同的方案对象并运行实验
                                     if (scheme.equals("SPQS_BITSET")) {
-                                        SPQS_BITSET spqs = new SPQS_BITSET(maxfiles,order, 2);
                                         spqs.setup(SPQS_BITSET.LAMBDA, maxfiles);
                                         runExperiments(spqs, k, l, expTimes, insertions.get(0), filepath, maxfiles, out,dirName);
                                     } else if (scheme.equals("TDSC2023_BITSET")) {
-                                        TDSC2023_BITSET tdsc2023_BITSET = new TDSC2023_BITSET(128, 500, maxfiles, order, 2);
                                         runExperiments(tdsc2023_BITSET, k, l, expTimes, insertions.get(0),filepath, maxfiles, out, dirName);
                                     }
 
@@ -61,6 +61,22 @@ public class RunningTimeExp_BITSET_MANYOBJECTS {
                 }
             }
         }
+        // 打印时间列表中的所有值
+        tdsc2023_BITSET.printTimes();
+        tdsc2023_BITSET.removeFirstUpdateTime();
+        tdsc2023_BITSET.removeFirstSearchTime();
+        // 输出平均值
+        System.out.println("tdsc2023_BITSET平均更新耗时: " + tdsc2023_BITSET.getAverageUpdateTime() + " ms");
+        System.out.println("tdsc2023_BITSET平均查询客户端耗时: " + tdsc2023_BITSET.getAverageClientTime() + " ms");
+        System.out.println("tdsc2023_BITSET平均查询服务器耗时: " + tdsc2023_BITSET.getAverageServerTime() + " ms");
+        // 打印时间列表中的所有值
+        spqs.printTimes();
+        spqs.removeFirstUpdateTime();
+        spqs.removeFirstSearchTime();
+        // 输出平均值
+        System.out.println("spqs平均更新耗时: " + spqs.getAverageUpdateTime() + " ms");
+        System.out.println("spqs平均查询客户端耗时: " + spqs.getAverageClientTime() + " ms");
+        System.out.println("spqs平均查询服务器耗时: " + spqs.getAverageServerTime() + " ms");
     }
 
     // 运行实验，适用于不同的方案对象
@@ -101,51 +117,42 @@ public class RunningTimeExp_BITSET_MANYOBJECTS {
             BigInteger BR = tdsc2023.Search(R_min, R_max, WQ);
         }
 
-        System.setOut(out);  // 重定向输出
+//        System.setOut(out);  // 重定向输出
         System.out.println("正式实验: ");
         // 初始化一个存储实验结果的二维数组
         Object[][] results = new Object[insertions][3];
+        Object[] result;
 
         // 获取 insertions 次的随机数据，并将其存储到 results 中
         for (int i = 0; i < insertions; i++) {
-            Object[] result = SPQS_BITSET.GetRandomItem(12, filepath);
+            result = SPQS_BITSET.GetRandomItem(12, filepath);
             if (result == null) {
                 System.out.println("获取数据失败。");
                 return;
             }
             results[i] = result;
-        }
-        for (int i = 0; i < insertions; i++) {
             files = new int[]{((BigInteger) results[i][0]).intValue()}; // 从 results 中获取文件
             pSet = (long[]) results[i][1]; // 从 results 中获取 pSet
             W = (String[]) results[i][2]; // 从 results 中获取 W
-            int progress = (int) ((i + 1) / (double) insertions * 100);
-            System.err.println(" 实验进度: " + progress + "%");
+            double progress = (double) ((i + 1) / (double) insertions * 100);
+//            System.err.println(" 实验进度: " + progress + "%");
             System.out.println("实验次数: " + (i + 1));
 
             // 执行 Update
             if (scheme instanceof SPQS_BITSET) {
                 SPQS_BITSET spqs = (SPQS_BITSET) scheme;
-//                BigInteger pointHilbertIndex = spqs.hilbertCurve.index(pSet);
-//                BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(l));
-//                BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(l));
-//                System.out.println("自动生成的区间: R_min = " + R_min + ", R_max = " + R_max);
                 spqs.ObjectUpdate(pSet, W, "add", files, 100000);
             } else if (scheme instanceof TDSC2023_BITSET) {
                 TDSC2023_BITSET tdsc2023 = (TDSC2023_BITSET) scheme;
-//                BigInteger pointHilbertIndex = tdsc2023.hilbertCurve.index(pSet);
-//                BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(l));
-//                BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(l));
-//                System.out.println("自动生成的区间: R_min = " + R_min + ", R_max = " + R_max);
                 tdsc2023.update(pSet, W, "add", files, 100000);
             }
-            System.out.println("第" + (i + 1) + "次insert完成。\n");
+//            System.out.println("第" + (i + 1) + "次insert完成。\n");
         }
 
         // 重定向输出到新的文件 fileName + "search"
         String searchFileName = dirName + "/" +  scheme + "_keywordsnum_" + k + "_rangelen_" + (2 * l) + "_exptimes_" + expTimes + "_search.txt";
         try (PrintStream searchOut = new PrintStream(Files.newOutputStream(Paths.get(searchFileName)))) {
-            System.setOut(searchOut);
+//            System.setOut(searchOut);
             if (scheme instanceof SPQS_BITSET) {
                 SPQS_BITSET spqs = (SPQS_BITSET) scheme;
                 BigInteger pointHilbertIndex = spqs.hilbertCurve.index(pSet);
@@ -160,32 +167,6 @@ public class RunningTimeExp_BITSET_MANYOBJECTS {
                 BigInteger BR = tdsc2023.Search(R_min, R_max, WQ);
             }
         }
-    }
-    // 执行 SPQS_BITSET 方案的实验
-    private static void runSPQSExperiment(SPQS_BITSET spqs, int[] files, long[] pSet, String[] W, BigInteger R_min, BigInteger R_max, String[] WQ) throws Exception {
-        // Add Update
-        spqs.ObjectUpdate(pSet, W, "add", files, 500);
-        // Search
-//        BigInteger BR = spqs.ObjectSearch(R_min, R_max, WQ);
-        // 返回最终解密后的位图信息
-        // spqs.findIndexesOfOne(BR);
-
-        // Del Update
-//        spqs.ObjectUpdate(pSet, W, "del", files, 500);
-    }
-
-    // 执行 TDSC2023_BITSET 方案的实验
-    private static void runTDSC2023Experiment(TDSC2023_BITSET tdsc2023, int[] files, long[] pSet, String[] W, BigInteger R_min, BigInteger R_max, String[] WQ) throws Exception {
-        // Add Update
-        tdsc2023.update(pSet, W, "add", files, 500);
-
-        // Search
-//        BigInteger BR = tdsc2023.Search(R_min, R_max, WQ);
-        // 返回最终解密后的位图信息
-        // tdsc2023.homomorphicEncryption.findIndexesOfOne(BR);
-
-        // Del Update
-//        tdsc2023.update(pSet, W, "del", files, 500);
     }
 
 
