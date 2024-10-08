@@ -4,6 +4,7 @@ package org.davidmoten.Scheme.SPQS;
 import org.davidmoten.B.B;
 import org.davidmoten.BPC.BPCGenerator;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
+import org.davidmoten.Scheme.SPQS.SPQS_BITSET;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -20,7 +21,7 @@ import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-public class SPQS {
+public class SPQS_BITSET {
     // 列表用于存储 update 和 search 的时间
     public List<Double> totalUpdateTimes = new ArrayList<>();    // 存储 update 操作的总耗时
     public List<Double> clientSearchTimes = new ArrayList<>();         // 存储客户端 search 操作的时间
@@ -50,7 +51,7 @@ public class SPQS {
     private BPCGenerator bpcGenerator;
 
     // 修改后的构造函数
-    public SPQS(int maxFiles,int order, int dimension) {
+    public SPQS_BITSET(int maxFiles,int order, int dimension) {
 //        this.maxnums_w = maxnums_w;
 //        this.filePath = filePath;
         this.maxFiles = maxFiles;
@@ -424,9 +425,6 @@ public class SPQS {
             double total_time = msclient_time1 + msclient_time2 + msserver_time;
             System.out.println("prefix encode: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
 
-            // 添加时间到相应的列表
-            clientSearchTimes.add(msclient_time1 + msclient_time2);
-            serverSearchTimes.add(msserver_time);
 //            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
             Sump = Sump.or(bsp);
         }
@@ -564,7 +562,7 @@ public class SPQS {
         // 输出总耗时
         double totalLoopTimeMs = totalLoopTime / 1_000_000.0;
         System.out.println("Total loop time: " + totalLoopTime + " ns (" + totalLoopTimeMs + " ms).");
-        System.out.println("SPQS Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1_000_000.0)) + " ms).");
+        System.out.println("SPQS_BITSET Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1_000_000.0)) + " ms).");
         return Sump.and(Sumw);
     }
     public void ObjectUpdate(long[] pSet, String[] W, String op, int[] files, int CounterLimits) throws Exception {
@@ -650,7 +648,7 @@ public class SPQS {
 
         // 输出总耗时
         double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
-        System.out.println("SPQS Total update time: " + totalLoopTimeMs + " ms.");
+        System.out.println("SPQS_BITSET Total update time: " + totalLoopTimeMs + " ms.");
         // 存储到列表中
         totalUpdateTimes.add(totalLoopTimeMs);
         System.out.println("Update operation completed.");
@@ -804,94 +802,66 @@ public class SPQS {
                 (byte) value
         };
     }
-    // 获取三个列表中所有值的平均值
+    // 获取更新操作的平均时间
     public double getAverageUpdateTime() {
-        return calculateAverage(totalUpdateTimes);
+        return totalUpdateTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
 
+    // 获取客户端查询操作的平均时间
     public double getAverageClientTime() {
-        return calculateAverage(clientSearchTimes);
+        return clientSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
 
+    // 获取服务器查询操作的平均时间
     public double getAverageServerTime() {
-        return calculateAverage(serverSearchTimes);
+        return serverSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
-    // 计算平均值的方法
-    private double calculateAverage(List<Double> times) {
-        if (times.isEmpty()) {
-            return 0.0;  // 避免除以 0
+
+    // 打印 update 和 search 的时间列表
+    public void printTimes() {
+        System.out.println("Update Times:");
+        for (Double time : totalUpdateTimes) {
+            System.out.print(time + " ms ");
         }
-        double sum = 0.0;
-        for (double time : times) {
-            sum += time;
+        System.out.println();
+        System.out.println("Client Search Times:");
+        for (Double time : clientSearchTimes) {
+            System.out.print(time + " ms ");
         }
-        return sum / times.size();
+        System.out.println();
+        System.out.println("Server Search Times:");
+        for (Double time : serverSearchTimes) {
+            System.out.print(time + " ms ");
+        }
+        System.out.println();
     }
     // 测试SR-DSSE算法的运行
     public static void main(String[] args) throws Exception {
-//        SPQS spqs = new SPQS();
-//        spqs.setup(LAMBDA, MAX_FILES);
 
-        // 示例文件的索引
-//        int[] fileIndexes = {0, 2, 1 << 19};  // 假设文件有索引0, 2, 1<<19 + 1
-//        int[] fileIndexes1 = {2, 3};  // 假设文件有索引0, 2, 1<<19 + 1
+        SPQS_BITSET spqs = new SPQS_BITSET(1<<20, 16, 2);
 
-//        spqs.update("w1", "add", fileIndexes);
-//        spqs.update("w1", "add", fileIndexes1);
-//        spqs.update("w3", "del", fileIndexes);
-//        spqs.update("w1", "del", fileIndexes);
-//        spqs.search("w1");
-//        spqs.search("w3");
+        // 测试 update 操作
+        for (int i = 0; i < 1; i++) {
+            long[] pSet = {i, i + 1};
+            String[] W = {"keyword1", "keyword2"};
+            int[] files = {i};
+            spqs.ObjectUpdate(pSet, W, "add", files, 1000);
+        }
 
-        // 进行主流程测试
-//        while (true) {
-//            // 模拟从数据集中获取一项数据
-//            Object[] result = GetRandomItem(12);
-//            if (result == null) {
-//                System.out.println("获取数据失败。");
-//                continue;
-//            }
-//
-//            int[] files = new int[]{((BigInteger) result[0]).intValue()};
-//            long[] pSet = (long[]) result[1];
-//            String[] W = (String[]) result[2];
-//            BigInteger pointHilbertIndex = spqs.hilbertCurve.index(pSet);
-//            // 统计 update 方法的运行时间
-//            spqs.ObjectUpdate(pSet, W, "add", files, maxnums_w);
-//
-//            // 获取用户输入的搜索参数
-//            Scanner scanner = new Scanner(System.in);
-//
-//            System.out.print("请输入 R_min: ");
-//            BigInteger R_min = scanner.nextBigInteger();
-//
-//            System.out.print("请输入 R_max: ");
-//            BigInteger R_max = scanner.nextBigInteger();
-//
-//            System.out.print("请输入关键字数量: ");
-//            int WQSize = scanner.nextInt();
-//            scanner.nextLine(); // 清除换行符
-//
-//            String[] WQ = new String[WQSize];
-//            for (int i = 0; i < WQSize; i++) {
-//                System.out.print("请输入关键字 WQ[" + i + "]: ");
-//                WQ[i] = scanner.nextLine();
-//            }
-//
-//            BigInteger BR = spqs.ObjectSearch(R_min, R_max, WQ);
-//            // 返回最终解密后的位图信息 BR
-//            findIndexesOfOne(BR);
-//
-//            spqs.ObjectUpdate(pSet, W, "del", files, maxnums_w);
-//
-//            // 继续进行下一个循环
-//            System.out.print("是否继续？(yes/no): ");
-//            String response = scanner.nextLine();
-//            if (!response.equalsIgnoreCase("yes")) {
-//                break;
-//            }
-//        }
+        // 测试 search 操作
+        BigInteger R_min = BigInteger.valueOf(1);
+        BigInteger R_max = BigInteger.valueOf(100);
+        String[] WQ = {"keyword1", "keyword2"};
+        for (int i = 0; i < 1; i++) {
+            spqs.ObjectSearch(R_min, R_max, WQ);
+        }
 
+        // 打印时间列表中的所有值
+        spqs.printTimes();
+        // 输出平均值
+        System.out.println("平均更新耗时: " + spqs.getAverageUpdateTime() + " ms");
+        System.out.println("平均查询客户端耗时: " + spqs.getAverageClientTime() + " ms");
+        System.out.println("平均查询服务器耗时: " + spqs.getAverageServerTime() + " ms");
         System.out.println("程序结束。");
     }
 }

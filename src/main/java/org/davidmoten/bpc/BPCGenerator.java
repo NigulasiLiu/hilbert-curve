@@ -3,6 +3,8 @@ package org.davidmoten.BPC;
 import java.math.BigInteger;
 import java.util.*;
 
+import static org.davidmoten.Scheme.SRDSSE.SRDSSE.random;
+
 public class BPCGenerator {
 
     private int order;
@@ -70,18 +72,46 @@ public class BPCGenerator {
 
         return sb.toString();
     }
+    // 新方法：根据k返回一个BigInteger数组R，使得results.size()==k
+    public BigInteger[] generateRForSize(int k) {
+        BigInteger[] R;
+        List<BigInteger> results;
 
+        // 尝试生成不同的R，直到results.size() == k
+        do {
+            // 随机生成两个不同的 BigInteger 作为 R 的范围
+            BigInteger start = new BigInteger(order, random);  // 生成order位的随机数
+            BigInteger end = start.add(BigInteger.valueOf(random.nextInt(10) + 1));  // 保证end和start不同
+
+            R = new BigInteger[] {start, end};
+            results = GetBPCValueList(R);
+
+        } while (results.size() != k); // 直到满足results.size() == k
+
+        return R;
+    }
     public static void main(String[] args) {
         int order = 17*2;
         BPCGenerator bpc = new BPCGenerator(order);
-        BigInteger[] R = {new BigInteger("7045786223"), new BigInteger("7045786225")};
-        List<BigInteger> results = bpc.GetBPCValueList(R);
+        BigInteger[] R1 = {new BigInteger("7045786223"), new BigInteger("7045786225")};
+        List<BigInteger> results1 = bpc.GetBPCValueList(R1);
 
-        System.out.println("BPCValue Results: " + results);
+        System.out.println("BPCValue Results: " + results1);
 
-        for (BigInteger result : results) {
+        for (BigInteger result : results1) {
             // 使用右移次数计算并输出二进制字符串
             System.out.println("BPCValue Result (with stars): " + bpc.toBinaryStringWithStars(result, order, bpc.shiftCounts.get(result)));
         }
+
+        // 调用新方法生成R，确保results.size() == k
+        int k = 3;  // 期望结果数量为k
+        BigInteger[] R = bpc.generateRForSize(k);
+
+        // 输出生成的R数组
+        System.out.println("Generated R: " + Arrays.toString(R));
+
+        // 验证results的大小
+        List<BigInteger> results = bpc.GetBPCValueList(R);
+        System.out.println("Results size: " + results.size());
     }
 }

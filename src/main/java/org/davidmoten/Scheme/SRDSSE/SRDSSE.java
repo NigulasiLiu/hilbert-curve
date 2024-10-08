@@ -17,7 +17,7 @@ public class SRDSSE {
 
     private static final int LAMBDA = 128;  // 安全参数 λ
     private static final int MAX_FILES = 1 << 20; // 最大文件数目 2^20
-    private static final Random random = new Random();
+    public static final Random random = new Random();
 
     private HashMap<String, int[]> SC;  // 客户端状态
     private HashMap<String, BigInteger> SS;  // 服务器状态
