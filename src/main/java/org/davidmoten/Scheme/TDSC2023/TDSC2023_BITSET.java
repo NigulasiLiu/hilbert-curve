@@ -15,6 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.text.DecimalFormat;
 import java.util.*;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public class TDSC2023_BITSET {
@@ -81,7 +82,6 @@ public class TDSC2023_BITSET {
         }
         return hexString.toString();
     }
-
 
     private List<String> preCode(long[] pSet) {
         // 计算点的 Hilbert 索引
@@ -163,9 +163,8 @@ public class TDSC2023_BITSET {
     }
 
     private int getCounter(String input) {
-        return T.getOrDefault(input, -1);
+        return T.getOrDefault(input, 0);
     }
-
     // 更新操作
     public void update(long[] pSet, String[] W, String op, int[] files, int CounterLimits) throws Exception {
 //        System.out.println("Starting update operation...");
@@ -184,7 +183,7 @@ public class TDSC2023_BITSET {
             String[] keys = F_K_sigma(KS, p);
             String Kp = keys[0];
             String KpPrime = keys[1];
-            int c = T.getOrDefault(p, -1);
+            int c = T.getOrDefault(p, 0);
 
             // 使用 DPRF.Derive获取Tp_c_plus_1
             String Tp_c_plus_1 = dprf.Derive(new SecretKeySpec(Kp.getBytes(StandardCharsets.UTF_8), HMAC_SHA256), c + 1);
@@ -212,7 +211,7 @@ public class TDSC2023_BITSET {
             String[] keys = F_K_sigma(KS, w);
             String Kw = keys[0];
             String KwPrime = keys[1];
-            int c = T.getOrDefault(w, -1);
+            int c = T.getOrDefault(w, 0);
 
             // 使用 DPRF 来生成 DelKey 和 Derive
             String Tw_c1 = dprf.Derive(new SecretKeySpec(Kw.getBytes(StandardCharsets.UTF_8), HMAC_SHA256), c + 1);
@@ -236,8 +235,8 @@ public class TDSC2023_BITSET {
         // 输出总耗时
         double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
 //        System.out.println("TDSC2023_BITSET Total update time: " + totalLoopTimeMs + " ms).");
-        System.out.println("TDSC2023_BITSET ptime: " + (pTime-startTime) / 1_000_000.0 + " ms.");
-        System.out.println("TDSC2023_BITSET wtime: " + (wTime-pTime) / 1_000_000.0 + " ms.");
+//        System.out.println("TDSC2023_BITSET ptime: " + (pTime-startTime) / 1_000_000.0 + " ms.");
+//        System.out.println("TDSC2023_BITSET wtime: " + (wTime-pTime) / 1_000_000.0 + " ms.");
 
         // 存储到列表中
         totalUpdateTimes.add(totalLoopTimeMs);
@@ -257,9 +256,6 @@ public class TDSC2023_BITSET {
             String Kp = keys[0];
             String KpPrime = keys[1];
             int c = getCounter(p);
-            if (c == -1) {
-                continue; // 如果计数器无效，跳过这个前缀
-            }
             Key STp = dprf.DelKey(Kp, c);
             clientRequest_p.add(new Object[]{KpPrime, STp, c});
         }
@@ -269,9 +265,6 @@ public class TDSC2023_BITSET {
             String Kw = keys[0];
             String KwPrime = keys[1];
             int c = getCounter(w);
-            if (c == -1) {
-                continue; // 如果计数器无效，跳过这个关键字
-            }
             Key STw = dprf.DelKey(Kw, c);
             clientRequest_w.add(new Object[]{KwPrime, STw, c});
         }
@@ -315,9 +308,7 @@ public class TDSC2023_BITSET {
             // 从 c 开始迭代
             for (int i = c; i >= 0; i--) {
                 String Ti = dprf.Derive(ST, i);
-//                String Ti = HMAC_SHA256;
                 String UTi = hashFunctions.H1(KwPrime, Ti);
-
                 BigInteger e_p_i = KDB.get(UTi);
                 if (e_p_i == null) {
                     break;
@@ -329,7 +320,7 @@ public class TDSC2023_BITSET {
             String Tc = dprf.Derive(ST, c);
             String UTc = hashFunctions.H1(KwPrime, Tc);
             KDB.put(UTc, SumWe); // 将最新的索引更新至UTc
-            SumWList.add(SumWe);  // 假设只有一个关键字
+            SumWList.add(SumWe);
         }
         // 客户端接收服务器响应并处理
         BigInteger SumP_sk = BigInteger.ZERO;
@@ -348,6 +339,9 @@ public class TDSC2023_BITSET {
         BigInteger BR = homomorphicEncryption.dec(SumP_sk, SumP);
         // 处理关键字集合
         for (int j = 0; j < WQ.length; j++) {
+            if (j >= SumWList.size()) {
+                continue; // 如果 SumWList 没有足够的元素，跳过这次循环
+            }
             String w = WQ[j];
             String[] keys = F_K_sigma(KS, w);
             String KwPrime = keys[1];
@@ -427,34 +421,81 @@ public class TDSC2023_BITSET {
         }
 
         // 输出结果
-        System.out.println("文件id: " + id);
-        System.out.println("pSet: [x=" + pSet[0] + ", y=" + pSet[1] + "]");
-        System.out.print("W: [");
-        for (String w : W) {
-            System.out.print((w != null ? w : "null") + " ");
-        }
-        System.out.println("]");
+//        System.out.println("文件id: " + id);
+//        System.out.println("pSet: [x=" + pSet[0] + ", y=" + pSet[1] + "]");
+//        System.out.print("W: [");
+//        for (String w : W) {
+//            System.out.print((w != null ? w : "null") + " ");
+//        }
+//        System.out.println("]");
 
         // 返回pSet和W
         return new Object[]{id, pSet, W};
     }
-    public void removeFirstUpdateTime() {
-        if (!totalUpdateTimes.isEmpty()) {
-            totalUpdateTimes.remove(0);
-//            System.out.println("已移除 totalUpdateTimes 中的第一个元素。");
+    public double getAverageSearchTime() {
+        if (clientSearchTimes.size() != serverSearchTimes.size() || clientSearchTimes.isEmpty()) {
+            System.out.println("列表大小不一致或者为空，无法计算平均搜索时间。");
+            return 0.0;
+        }
+
+        // 使用stream高阶函数计算两个列表对应位置的元素之和的平均值
+        return IntStream.range(0, clientSearchTimes.size())
+                .mapToDouble(i -> clientSearchTimes.get(i) + serverSearchTimes.get(i))
+                .average()
+                .orElse(0.0);
+    }
+    public void removeExtremesUpdateTime() {
+        if (totalUpdateTimes.size() > 2) { // 确保列表中至少有3个元素
+            // 找到最大值和最小值的索引
+            int maxIndex = totalUpdateTimes.indexOf(Collections.max(totalUpdateTimes));
+            int minIndex = totalUpdateTimes.indexOf(Collections.min(totalUpdateTimes));
+
+            // 先移除较大的索引，避免影响较小索引
+            if (maxIndex > minIndex) {
+                totalUpdateTimes.remove(maxIndex);
+                totalUpdateTimes.remove(minIndex);
+            } else {
+                totalUpdateTimes.remove(minIndex);
+                totalUpdateTimes.remove(maxIndex);
+            }
+
+            System.out.println("已移除 totalUpdateTimes 列表中的最大值和最小值。");
         } else {
-            System.out.println("totalUpdateTimes 列表为空，无法移除。");
+            System.out.println("totalUpdateTimes 列表元素不足，无法移除最大值和最小值。");
         }
     }
-    public void removeFirstSearchTime() {
-        if (!clientSearchTimes.isEmpty()||!serverSearchTimes.isEmpty()) {
-            clientSearchTimes.remove(0);
-            serverSearchTimes.remove(0);
-            System.out.println("已移除 clientSearchTimes和serverSearchTimes 中的第一个元素。");
+
+    public void removeExtremesSearchTime() {
+        if (clientSearchTimes.size() > 2 && serverSearchTimes.size() > 2) { // 确保两个列表中至少有3个元素
+            // 找到 clientSearchTimes 和 serverSearchTimes 中的最大值和最小值的索引
+            int maxClientIndex = clientSearchTimes.indexOf(Collections.max(clientSearchTimes));
+            int minClientIndex = clientSearchTimes.indexOf(Collections.min(clientSearchTimes));
+            int maxServerIndex = serverSearchTimes.indexOf(Collections.max(serverSearchTimes));
+            int minServerIndex = serverSearchTimes.indexOf(Collections.min(serverSearchTimes));
+
+            // 先移除较大的索引，避免影响较小索引
+            if (maxClientIndex > minClientIndex) {
+                clientSearchTimes.remove(maxClientIndex);
+                clientSearchTimes.remove(minClientIndex);
+            } else {
+                clientSearchTimes.remove(minClientIndex);
+                clientSearchTimes.remove(maxClientIndex);
+            }
+
+            if (maxServerIndex > minServerIndex) {
+                serverSearchTimes.remove(maxServerIndex);
+                serverSearchTimes.remove(minServerIndex);
+            } else {
+                serverSearchTimes.remove(minServerIndex);
+                serverSearchTimes.remove(maxServerIndex);
+            }
+
+            System.out.println("已移除 clientSearchTimes 和 serverSearchTimes 列表中的最大值和最小值。");
         } else {
-            System.out.println("列表为空，无法移除。");
+            System.out.println("clientSearchTimes 或 serverSearchTimes 列表元素不足，无法移除最大值和最小值。");
         }
     }
+
     // 获取更新操作的平均时间
     public double getAverageUpdateTime() {
         return totalUpdateTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
@@ -584,8 +625,8 @@ public class TDSC2023_BITSET {
             tdsc2023.Search(R_min, R_max, WQ);
         }
 
-        tdsc2023.removeFirstUpdateTime();
-        tdsc2023.removeFirstSearchTime();
+//        tdsc2023.removeFirstUpdateTime();
+//        tdsc2023.removeFirstSearchTime();
         // 打印时间列表中的所有值
         tdsc2023.printTimes();
         // 输出平均值

@@ -63,16 +63,16 @@ public class RunningTimeExp_BITSET_MANYOBJECTS {
         }
         // 打印时间列表中的所有值
         tdsc2023_BITSET.printTimes();
-        tdsc2023_BITSET.removeFirstUpdateTime();
-        tdsc2023_BITSET.removeFirstSearchTime();
+        tdsc2023_BITSET.removeExtremesUpdateTime();
+        tdsc2023_BITSET.removeExtremesSearchTime();
         // 输出平均值
         System.out.println("tdsc2023_BITSET平均更新耗时: " + tdsc2023_BITSET.getAverageUpdateTime() + " ms");
         System.out.println("tdsc2023_BITSET平均查询客户端耗时: " + tdsc2023_BITSET.getAverageClientTime() + " ms");
         System.out.println("tdsc2023_BITSET平均查询服务器耗时: " + tdsc2023_BITSET.getAverageServerTime() + " ms");
         // 打印时间列表中的所有值
         spqs.printTimes();
-        spqs.removeFirstUpdateTime();
-        spqs.removeFirstSearchTime();
+        spqs.removeExtremesUpdateTime();
+        spqs.removeExtremesSearchTime();
         // 输出平均值
         System.out.println("spqs平均更新耗时: " + spqs.getAverageUpdateTime() + " ms");
         System.out.println("spqs平均查询客户端耗时: " + spqs.getAverageClientTime() + " ms");

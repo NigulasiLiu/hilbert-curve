@@ -17,6 +17,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -27,7 +28,9 @@ public class SPQS_BITSET {
     public List<Double> clientSearchTimes = new ArrayList<>();         // 存储客户端 search 操作的时间
     public List<Double> serverSearchTimes = new ArrayList<>();         // 存储服务器 search 操作的时间
 
-    public static final int LAMBDA = 128;  // 安全参数 λ
+    public static final int LAMBDA = 128;  // 安全参数 λ    // 缓存的MessageDigest实例
+    private final MessageDigest messageDigest;
+    private final byte[] intBuffer = new byte[4]; // 用于缓存int转byte的缓冲区
 
     private HashMap<String, int[]> SC;  // 客户端状态
     private HashMap<String, BigInteger> SS;  // 服务器状态
@@ -51,7 +54,8 @@ public class SPQS_BITSET {
     private BPCGenerator bpcGenerator;
 
     // 修改后的构造函数
-    public SPQS_BITSET(int maxFiles,int order, int dimension) {
+    public SPQS_BITSET(int maxFiles,int order, int dimension) throws NoSuchAlgorithmException {
+        this.messageDigest = MessageDigest.getInstance(HASH_ALGORITHM);
 //        this.maxnums_w = maxnums_w;
 //        this.filePath = filePath;
         this.maxFiles = maxFiles;
@@ -528,10 +532,9 @@ public class SPQS_BITSET {
 
         // 输出总耗时
         double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
+//        System.out.println("SPQS_BITSET ptime: " + (pTime-startTime) / 1_000_000.0 + " ms.");
+//        System.out.println("SPQS_BITSET wtime: " + (wTime-pTime) / 1_000_000.0 + " ms.");
 //        System.out.println("SPQS_BITSET Total update time: " + totalLoopTimeMs + " ms.");
-        System.out.println("SPQS_BITSET ptime: " + (pTime-startTime) / 1_000_000.0 + " ms.");
-        System.out.println("SPQS_BITSET wtime: " + (wTime-pTime) / 1_000_000.0 + " ms.");
-        System.out.println("SPQS_BITSET Total update time: " + totalLoopTimeMs + " ms.");
         // 存储到列表中
         totalUpdateTimes.add(totalLoopTimeMs);
 //        System.out.println("Update operation completed.");
@@ -649,13 +652,23 @@ public class SPQS_BITSET {
      * @return 哈希后的值
      * @throws NoSuchAlgorithmException
      */
-    private byte[] hashFunction(byte[] input1, int input2) throws NoSuchAlgorithmException {
-        MessageDigest md = MessageDigest.getInstance(HASH_ALGORITHM);
-        md.update(input1);
-        md.update(intToBytes(input2));
-        return md.digest();
+    private byte[] hashFunction(byte[] input1, int input2) {
+        messageDigest.reset(); // 重置MessageDigest实例
+        messageDigest.update(input1);
+        // 将int转为byte并更新到MessageDigest
+        intBuffer[0] = (byte) (input2 >> 24);
+        intBuffer[1] = (byte) (input2 >> 16);
+        intBuffer[2] = (byte) (input2 >> 8);
+        intBuffer[3] = (byte) input2;
+        messageDigest.update(intBuffer);
+        return messageDigest.digest();
     }
-
+//    private byte[] hashFunction(byte[] input1, int input2) throws NoSuchAlgorithmException {
+//        MessageDigest md = MessageDigest.getInstance(HASH_ALGORITHM);
+//        md.update(input1);
+//        md.update(intToBytes(input2));
+//        return md.digest();
+//    }
     /**
      * 异或操作，将两个字节数组进行逐位异或
      *
@@ -699,23 +712,88 @@ public class SPQS_BITSET {
     public double getAverageServerTime() {
         return serverSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
-    public void removeFirstUpdateTime() {
-        if (!totalUpdateTimes.isEmpty()) {
-            totalUpdateTimes.remove(0);
-//            System.out.println("已移除 totalUpdateTimes 中的第一个元素。");
+    public double getAverageSearchTime() {
+        if (clientSearchTimes.size() != serverSearchTimes.size() || clientSearchTimes.isEmpty()) {
+            System.out.println("列表大小不一致或者为空，无法计算平均搜索时间。");
+            return 0.0;
+        }
+
+        // 使用stream高阶函数计算两个列表对应位置的元素之和的平均值
+        return IntStream.range(0, clientSearchTimes.size())
+                .mapToDouble(i -> clientSearchTimes.get(i) + serverSearchTimes.get(i))
+                .average()
+                .orElse(0.0);
+    }
+
+    public void removeExtremesUpdateTime() {
+        if (totalUpdateTimes.size() > 2) { // 确保列表中至少有3个元素
+            // 找到最大值和最小值的索引
+            int maxIndex = totalUpdateTimes.indexOf(Collections.max(totalUpdateTimes));
+            int minIndex = totalUpdateTimes.indexOf(Collections.min(totalUpdateTimes));
+
+            // 先移除较大的索引，避免影响较小索引
+            if (maxIndex > minIndex) {
+                totalUpdateTimes.remove(maxIndex);
+                totalUpdateTimes.remove(minIndex);
+            } else {
+                totalUpdateTimes.remove(minIndex);
+                totalUpdateTimes.remove(maxIndex);
+            }
+
+            System.out.println("已移除 totalUpdateTimes 列表中的最大值和最小值。");
         } else {
-            System.out.println("totalUpdateTimes 列表为空，无法移除。");
+            System.out.println("totalUpdateTimes 列表元素不足，无法移除最大值和最小值。");
         }
     }
-    public void removeFirstSearchTime() {
-        if (!clientSearchTimes.isEmpty()||!serverSearchTimes.isEmpty()) {
-            clientSearchTimes.remove(0);
-            serverSearchTimes.remove(0);
-//            System.out.println("已移除 clientSearchTimes和serverSearchTimes 中的第一个元素。");
+
+    public void removeExtremesSearchTime() {
+        if (clientSearchTimes.size() > 2 && serverSearchTimes.size() > 2) { // 确保两个列表中至少有3个元素
+            // 找到 clientSearchTimes 和 serverSearchTimes 中的最大值和最小值的索引
+            int maxClientIndex = clientSearchTimes.indexOf(Collections.max(clientSearchTimes));
+            int minClientIndex = clientSearchTimes.indexOf(Collections.min(clientSearchTimes));
+            int maxServerIndex = serverSearchTimes.indexOf(Collections.max(serverSearchTimes));
+            int minServerIndex = serverSearchTimes.indexOf(Collections.min(serverSearchTimes));
+
+            // 先移除较大的索引，避免影响较小索引
+            if (maxClientIndex > minClientIndex) {
+                clientSearchTimes.remove(maxClientIndex);
+                clientSearchTimes.remove(minClientIndex);
+            } else {
+                clientSearchTimes.remove(minClientIndex);
+                clientSearchTimes.remove(maxClientIndex);
+            }
+
+            if (maxServerIndex > minServerIndex) {
+                serverSearchTimes.remove(maxServerIndex);
+                serverSearchTimes.remove(minServerIndex);
+            } else {
+                serverSearchTimes.remove(minServerIndex);
+                serverSearchTimes.remove(maxServerIndex);
+            }
+
+            System.out.println("已移除 clientSearchTimes 和 serverSearchTimes 列表中的最大值和最小值。");
         } else {
-            System.out.println("列表为空，无法移除。");
+            System.out.println("clientSearchTimes 或 serverSearchTimes 列表元素不足，无法移除最大值和最小值。");
         }
     }
+
+    //    public void removeFirstUpdateTime() {
+//        if (!totalUpdateTimes.isEmpty()) {
+//            totalUpdateTimes.remove(0);
+////            System.out.println("已移除 totalUpdateTimes 中的第一个元素。");
+//        } else {
+//            System.out.println("totalUpdateTimes 列表为空，无法移除。");
+//        }
+//    }
+//    public void removeFirstSearchTime() {
+//        if (!clientSearchTimes.isEmpty()||!serverSearchTimes.isEmpty()) {
+//            clientSearchTimes.remove(0);
+//            serverSearchTimes.remove(0);
+////            System.out.println("已移除 clientSearchTimes和serverSearchTimes 中的第一个元素。");
+//        } else {
+//            System.out.println("列表为空，无法移除。");
+//        }
+//    }
     // 打印 update 和 search 的时间列表
     public void printTimes() {
         System.out.println("Update Times:");
@@ -779,8 +857,8 @@ public class SPQS_BITSET {
         }
         // 打印时间列表中的所有值
         spqs.printTimes();
-        spqs.removeFirstUpdateTime();
-        spqs.removeFirstSearchTime();
+        spqs.removeExtremesSearchTime();
+        spqs.removeExtremesSearchTime();
         // 输出平均值
         System.out.println("平均更新耗时: " + spqs.getAverageUpdateTime() + " ms");
         System.out.println("平均查询客户端耗时: " + spqs.getAverageClientTime() + " ms");
