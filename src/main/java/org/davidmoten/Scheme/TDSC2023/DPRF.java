@@ -28,8 +28,20 @@ public class DPRF {
         return new SecretKeySpec(GGM_PRF(K, c_from_counter).getBytes(StandardCharsets.UTF_8), HMAC_SHA256);
     }
 
+//    // GGM PRF 的 Derive 实现
+//    public String Derive(Key key, int counter) throws Exception {
+//        if (!isInRange(counter)) {
+//            throw new IllegalArgumentException("Counter out of range: " + counter + " not in [0, " + c_max + "]");
+//        }
+//
+//        String input = Integer.toString(counter);
+//        Mac mac = Mac.getInstance(HMAC_SHA256);
+//        mac.init(key);
+//        byte[] derivedBytes = mac.doFinal(input.getBytes(StandardCharsets.UTF_8));
+//        return Base64.getEncoder().encodeToString(derivedBytes);
+//    }
     // GGM PRF 的 Derive 实现
-    public String Derive(Key key, int counter) throws Exception {
+    public byte[] Derive(Key key, int counter) throws Exception {
         if (!isInRange(counter)) {
             throw new IllegalArgumentException("Counter out of range: " + counter + " not in [0, " + c_max + "]");
         }
@@ -37,10 +49,8 @@ public class DPRF {
         String input = Integer.toString(counter);
         Mac mac = Mac.getInstance(HMAC_SHA256);
         mac.init(key);
-        byte[] derivedBytes = mac.doFinal(input.getBytes(StandardCharsets.UTF_8));
-        return Base64.getEncoder().encodeToString(derivedBytes);
+        return mac.doFinal(input.getBytes(StandardCharsets.UTF_8));
     }
-
     // GGM PRF 实现：GGM PRF 是通过递归的方式生成 PRF 值
     private String GGM_PRF(String seed, int index) throws Exception {
         int depth = (int) Math.ceil(Math.log(c_max) / Math.log(2));  // 二叉树的深度取决于 c_max
@@ -72,30 +82,30 @@ public class DPRF {
         return counter >= 0 && counter <= c_max;
     }
 
-    public static void main(String[] args) throws Exception {
-        int c_max = 200;  // 自定义最大范围 c_max 为 200
-
-        // 创建 DPRF 实例，设置最大范围 c_max
-        DPRF dprf = new DPRF(c_max);
-
-        // 测试过程：Derive -> DelKey -> Derive
-        String K = "SomeKey";
-        int c = 150;
-
-        // 第一次 Derive
-        String derivedValue1 = dprf.Derive(new SecretKeySpec(K.getBytes(StandardCharsets.UTF_8), "HmacSHA256"), c);
-        System.out.println("Derived Value 1 (from K): " + derivedValue1);
-
-        // 生成 ST 并 Derive
-        Key stKey = dprf.DelKey(K, c);
-        String derivedValue2 = dprf.Derive(stKey, c);
-        System.out.println("Derived Value 2 (from ST): " + derivedValue2);
-
-        // 验证两个 Derived Values 是否匹配
-        if (derivedValue1.equals(derivedValue2)) {
-            System.out.println("Derived values match.");
-        } else {
-            System.out.println("Derived values do not match.");
-        }
-    }
+//    public static void main(String[] args) throws Exception {
+//        int c_max = 200;  // 自定义最大范围 c_max 为 200
+//
+//        // 创建 DPRF 实例，设置最大范围 c_max
+//        DPRF dprf = new DPRF(c_max);
+//
+//        // 测试过程：Derive -> DelKey -> Derive
+//        String K = "SomeKey";
+//        int c = 150;
+//
+//        // 第一次 Derive
+//        String derivedValue1 = dprf.Derive(new SecretKeySpec(K.getBytes(StandardCharsets.UTF_8), "HmacSHA256"), c);
+//        System.out.println("Derived Value 1 (from K): " + derivedValue1);
+//
+//        // 生成 ST 并 Derive
+//        Key stKey = dprf.DelKey(K, c);
+//        String derivedValue2 = dprf.Derive(stKey, c);
+//        System.out.println("Derived Value 2 (from ST): " + derivedValue2);
+//
+//        // 验证两个 Derived Values 是否匹配
+//        if (derivedValue1.equals(derivedValue2)) {
+//            System.out.println("Derived values match.");
+//        } else {
+//            System.out.println("Derived values do not match.");
+//        }
+//    }
 }

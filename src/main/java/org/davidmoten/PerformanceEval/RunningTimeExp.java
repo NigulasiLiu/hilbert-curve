@@ -42,7 +42,7 @@ public class RunningTimeExp {
                                 try (PrintStream out = new PrintStream(Files.newOutputStream(Paths.get(fileName)))) {
                                     // 创建不同的方案对象并运行实验
                                     if (scheme.equals("SPQS_Biginteger")) {
-                                        SPQS_Biginteger spqsBiginteger = new SPQS_Biginteger(order, 2);
+                                        SPQS_Biginteger spqsBiginteger = new SPQS_Biginteger(maxfiles,order, 2);
                                         spqsBiginteger.setup(SPQS_Biginteger.LAMBDA, maxfiles);
                                         runExperiments(spqsBiginteger, k, l, expTimes, filepath, maxfiles, out,dirName);
                                     } else if (scheme.equals("TDSC2023_Biginteger")) {

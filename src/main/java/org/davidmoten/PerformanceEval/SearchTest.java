@@ -1,7 +1,9 @@
 package org.davidmoten.PerformanceEval;
 
 import org.davidmoten.Scheme.SPQS.SPQS_BITSET;
-import org.davidmoten.Scheme.TDSC2023.TDSC2023_BITSET;
+import org.davidmoten.Scheme.SPQS.SPQS_Biginteger;
+//import org.davidmoten.Scheme.TDSC2023.TDSC2023_BITSET;
+import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 
 import java.math.BigInteger;
 import java.util.ArrayList;
@@ -11,15 +13,17 @@ import java.util.Random;
 public class SearchTest {
 
     public static void main(String[] args) throws Exception {
-        int delupdatetimes = 15;
-        int searchtimes = 300;
-        int[] updatetimes = new int[]{10000,20000,30000,40000};
-        int[] objectnums = new int[]{1000000};
+        int delupdatetimes = 2;
+        int searchtimes = 50;
+        int[] updatetimes = new int[]{100};
+        int[] objectnums = new int[]{5000};
         int rangePredicate = 100000;
         int Wnums = 6;
         int[] maxfilesArray = {1 << 20};
         int[] hilbertOrders = {17};
+        int l = 300;
 
+        Random random = new Random(); // 用于随机选择对象
         // 初始化200个Object集合，每个包含pSet, W, files
         Object[] predefinedObjects = new Object[objectnums[0]];
         for (int i = 0; i < objectnums[0]; i++) {
@@ -28,11 +32,10 @@ public class SearchTest {
             for (int j = 0; j < Wnums; j++) {
                 W[j] = "keyword" + (i + j + 1); // 动态生成关键词
             }
-            int[] files = {i}; // files
+            int[] files = {random.nextInt(maxfilesArray[0])}; // files
             predefinedObjects[i] = new Object[]{pSet, W, files};
         }
 
-        Random random = new Random(); // 用于随机选择对象
 
         // 初始化标题行
 //        System.out.println("SPQS and TDSC2023 Update Times:");
@@ -45,8 +48,8 @@ public class SearchTest {
                 // 内层循环：遍历 hilbert orders 值
                 for (int hilbertOrder : hilbertOrders) {
                     // 初始化 SPQS_BITSET 和 TDSC2023_BITSET 实例
-                    SPQS_BITSET spqs = new SPQS_BITSET(maxfiles, hilbertOrder, 2);
-                    TDSC2023_BITSET tdsc2023 = new TDSC2023_BITSET(128, rangePredicate, maxfiles, hilbertOrder, 2);
+                    SPQS_Biginteger spqs = new SPQS_Biginteger(maxfiles, hilbertOrder, 2);
+                    TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(128, rangePredicate, maxfiles, hilbertOrder, 2);
                     int batchSize = 100; // 每次处理50个更新
                     // 执行 update 操作 (模拟多次操作获取平均时间)
                     for (int i = 0; i < updatetime; i++) {
@@ -77,8 +80,8 @@ public class SearchTest {
                             WQ[j] = "keyword" + (randomValue + j + 1); // 动态生成关键词
                         }
                         BigInteger pointHilbertIndex = spqs.hilbertCurve.index(pSetQ);
-                        BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(429496730));
-                        BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(429496730));
+                        BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(l));
+                        BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(l));
                         spqs.ObjectSearch(R_min,R_max,WQ);
                         tdsc2023.Search(R_min,R_max,WQ);
                         // 记录每次循环的平均更新耗时
