@@ -455,11 +455,8 @@ public class SPQS_BITSET {
         for (String p : P) {
             //Client
             combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
-            Kw = new byte[LAMBDA / 8];
-            Kw_prime = new byte[LAMBDA / 8];
-            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
-            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
-
+            Kw = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
+            Kw_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4); // 假设 LAMBDA / 4 是所需的长度
             // Step 2: 获取客户端的当前关键词状态
             int[] state = SC.getOrDefault(p, new int[]{0, -1, getRandomFromPool()});
             // Step 3: 随机生成 Rc+1
@@ -494,10 +491,8 @@ public class SPQS_BITSET {
         for (String w : W) {
             //Client
             combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
-            Kw = new byte[LAMBDA / 8];
-            Kw_prime = new byte[LAMBDA / 8];
-            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
-            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
+            Kw = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
+            Kw_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4); // 假设 LAMBDA / 4 是所需的长度
 
             // Step 2: 获取客户端的当前关键词状态
             int[] state = SC.getOrDefault(w, new int[]{0, -1, getRandomFromPool()});

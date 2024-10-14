@@ -31,7 +31,10 @@ public class B {
         if (i >= size || i < 0) throw new IndexOutOfBoundsException();
         return (bits[i / 8] >> (i % 8)) & 1;
     }
-
+    // 获取第i位的值（1或0）
+    public byte[] getBits() {
+        return bits;
+    }
     // 与操作：this & other
     public void and(B other) {
         if (this.size != other.size) throw new IllegalArgumentException("Sizes must match");

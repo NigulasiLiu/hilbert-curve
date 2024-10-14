@@ -178,6 +178,7 @@ public class TDSC2023_BITSET {
         long startTime = System.nanoTime();
         List<String> P = preCode(pSet);
         for (String p : P) {
+            long startTime1 = System.nanoTime();
             // 记录单次循环的开始时间
             long loopStartTime = System.nanoTime();
             String[] keys = F_K_sigma(KS, p);
@@ -191,6 +192,7 @@ public class TDSC2023_BITSET {
             String UTp_c_plus_1 = hashFunctions.H1(KpPrime, Tp_c_plus_1);
             BigInteger skp_c1 = hashFunctions.H2(KpPrime, c + 1);
 
+            long startTime2 = System.nanoTime();
             // 设置位图
             B b = new B(maxFiles);
             for (int fileIndex : files) {
@@ -201,9 +203,14 @@ public class TDSC2023_BITSET {
                     b.not();
                 }
             }
+            long startTime3 = System.nanoTime();
 
             BigInteger ep_c1 = homomorphicEncryption.enc(skp_c1, b.toBigInteger());
+            long startTime4 = System.nanoTime();
             SDB.put(UTp_c_plus_1, ep_c1);
+//            System.out.println("TDSC_BITSET per ptime1: " + (startTime2-startTime1) / 1_000_000.0 + " ms.");
+//            System.out.println("TDSC_BITSET per ptime2: " + (startTime3-startTime2) / 1_000_000.0 + " ms.");
+//            System.out.println("TDSC_BITSET per ptime3: " + (startTime4-startTime3) / 1_000_000.0 + " ms.");
         }
         long pTime = System.nanoTime();
 

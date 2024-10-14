@@ -12,9 +12,9 @@ public class SearchTest {
 
     public static void main(String[] args) throws Exception {
         int delupdatetimes = 1;
-        int updatetimes = 600;
+        int updatetimes = 4500;
         int searchtimes = 100;
-        int objectnums = 2000;
+        int objectnums = 20000;
         int rangePredicate = 20000;
         int Wnums = 6;
         int[] maxfilesArray = {1 << 20};

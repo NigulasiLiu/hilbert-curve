@@ -10,11 +10,11 @@ public class UpdateTest {
         int delExtremValueTimes = 1;
         int updatetimes = 30;
         int batchupdatetimes = 20;
-        int objectnums = 600;
+        int objectnums = 1000;
         int rangePredicate = 20000;
         int Wnums = 12;
-        int[] maxfilesArray = {1 << 20};
-        int[] hilbertOrders = {17};
+        int[] maxfilesArray = {1 << 20,1 << 18,1 << 16,1 << 14,1 << 12};
+        int[] hilbertOrders = {17,16,10,9};
 
         Random random = new Random(); // 用于随机选择对象
         // 初始化200个Object集合，每个包含pSet, W, files
@@ -97,7 +97,7 @@ public class UpdateTest {
 
                 // 记录每次循环的平均更新耗时
                 double spqsAvgUpdateTime = spqs.getAverageUpdateTime();
-                double tdscAvgUpdateTime = tdsc2023.getAverageUpdateTime()*2;
+                double tdscAvgUpdateTime = tdsc2023.getAverageUpdateTime();
 
                 // 打印每次组合的结果
                 System.out.printf("maxfiles: %-10d hilbertOrder: %-2d | SPQS: %-10.6f ms | TDSC2023: %-10.6f ms\n",

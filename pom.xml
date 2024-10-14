@@ -77,11 +77,11 @@
     </scm>
 
     <dependencies>
-        <dependency>
-            <groupId>com.github.davidmoten</groupId>
-            <artifactId>hilbert-curve</artifactId>
-            <version>0.2.4-SNAPSHOT</version>
-        </dependency>
+<!--        <dependency>-->
+<!--            <groupId>com.github.davidmoten</groupId>-->
+<!--            <artifactId>hilbert-curve</artifactId>-->
+<!--            <version>0.2.4-SNAPSHOT</version>-->
+<!--        </dependency>-->
 
         <dependency>
             <groupId>com.github.davidmoten</groupId>
@@ -164,14 +164,14 @@
                 <configuration>
                 </configuration>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>9</source>
-                    <target>9</target>
-                </configuration>
-            </plugin>
+<!--            <plugin>-->
+<!--                <groupId>org.apache.maven.plugins</groupId>-->
+<!--                <artifactId>maven-compiler-plugin</artifactId>-->
+<!--                <configuration>-->
+<!--                    <source>9</source>-->
+<!--                    <target>9</target>-->
+<!--                </configuration>-->
+<!--            </plugin>-->
         </plugins>
     </build>
 
