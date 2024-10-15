@@ -133,7 +133,7 @@ public class HilbertCurveRenderApp {
             System.out.println("If the points are in the same range of Hilbert indices, searching for them would likely involve similar or identical ranges.");
         } else {
             System.out.println("A larger color difference typically means that the points are farther apart in the spatial domain. In a search process, this could result in the need to search across multiple disjoint ranges on the Hilbert curve.");
-            System.out.println("As the difference increases, the search process may require more computational effort to traverse these disjoint regions, especially if the underlying data structure (like a B-tree) needs to perform multiple range lookups.");
+            System.out.println("As the difference increases, the search process may require more computational effort to traverse these disjoint regions, especially if the underlying data structure (like a BitMp-tree) needs to perform multiple range lookups.");
         }
     }
 

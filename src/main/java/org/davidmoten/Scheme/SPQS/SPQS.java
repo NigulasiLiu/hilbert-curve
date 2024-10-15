@@ -1,7 +1,7 @@
 package org.davidmoten.Scheme.SPQS;
 
 
-import org.davidmoten.BitMp.B;
+import org.davidmoten.BitMp.BitMp;
 import org.davidmoten.BPC.BPCGenerator;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 
@@ -588,8 +588,8 @@ public class SPQS {
             byte[] C = xorBytes(hashFunction(Kw, Rc_plus_1), intToBytes(state[2]));
             // Step 5: 根据操作选择 bi-bitmap (bsa, bsb)
             // 根据操作设置 bsa 和 bsb
-            B bsa = new B(maxFiles);
-            B bsb = new B(maxFiles);
+            BitMp bsa = new BitMp(maxFiles);
+            BitMp bsb = new BitMp(maxFiles);
             for (int fileIndex : files) {
                 if ("add".equals(op)) {
                     bsa.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
@@ -626,8 +626,8 @@ public class SPQS {
             byte[] I = hashFunction(Kw, Rc_plus_1); // 根据Kw和Rc+1计算索引I
             byte[] C = xorBytes(hashFunction(Kw, Rc_plus_1), intToBytes(state[2]));
             // Step 5: 根据操作选择 bi-bitmap (bsa, bsb)
-            B bsa = new B(maxFiles);
-            B bsb = new B(maxFiles);
+            BitMp bsa = new BitMp(maxFiles);
+            BitMp bsb = new BitMp(maxFiles);
             for (int fileIndex : files) {
                 if ("add".equals(op)) {
                     bsa.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1

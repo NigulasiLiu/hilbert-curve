@@ -1,6 +1,6 @@
 //package org.davidmoten.Scheme.TDSC2023;
 //
-//import org.davidmoten.B.B;
+//import org.davidmoten.BitMp.BitMp;
 //import org.davidmoten.BPC.BPCGenerator;
 //import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 //
@@ -13,7 +13,6 @@
 //import java.security.Key;
 //import java.security.NoSuchAlgorithmException;
 //import java.security.SecureRandom;
-//import java.text.DecimalFormat;
 //import java.util.*;
 //import java.util.stream.Stream;
 //
@@ -171,7 +170,7 @@
 //        System.out.println("Starting update operation...");
 //        System.out.println("Input pSet: " + Arrays.toString(pSet));
 //        System.out.println("Input W: " + Arrays.toString(W));
-////        System.out.println("BitMap: " + B);
+////        System.out.println("BitMap: " + BitMp);
 ////        System.out.println("BitMap_Op: " + BitMap_Op);
 //        System.out.println("CounterLimits: " + CounterLimits);
 //
@@ -193,7 +192,7 @@
 //            BigInteger skp_c1 = hashFunctions.H2(KpPrime, c + 1);
 //
 //            // 设置位图
-//            B b = new B(maxFiles);
+//            BitMp b = new BitMp(maxFiles);
 //            for (int fileIndex : files) {
 //                if ("add".equals(op)) {
 //                    b.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
@@ -219,7 +218,7 @@
 //            String UTw_c1 = hashFunctions.H1(KwPrime, Tw_c1);
 //            BigInteger skw_c1 = hashFunctions.H2(KwPrime, c + 1);
 //            // 设置位图
-//            B b = new B(maxFiles);
+//            BitMp b = new BitMp(maxFiles);
 //            for (int fileIndex : files) {
 //                if ("add".equals(op)) {
 //                    b.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1

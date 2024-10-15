@@ -1,6 +1,6 @@
 //package org.davidmoten.Scheme.TDSC2023;
 //
-//import org.davidmoten.B.B;
+//import org.davidmoten.BitMp.BitMp;
 //import org.davidmoten.BPC.BPCGenerator;
 //import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 //
@@ -170,7 +170,7 @@
 ////        System.out.println("Starting update operation...");
 ////        System.out.println("Input pSet: " + Arrays.toString(pSet));
 ////        System.out.println("Input W: " + Arrays.toString(W));
-////        System.out.println("BitMap: " + B);
+////        System.out.println("BitMap: " + BitMp);
 ////        System.out.println("BitMap_Op: " + BitMap_Op);
 ////        System.out.println("CounterLimits: " + CounterLimits);
 //
@@ -194,7 +194,7 @@
 //
 //            long startTime2 = System.nanoTime();
 //            // 设置位图
-//            B b = new B(maxFiles);
+//            BitMp b = new BitMp(maxFiles);
 //            for (int fileIndex : files) {
 //                if ("add".equals(op)) {
 //                    b.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
@@ -226,7 +226,7 @@
 //            String UTw_c1 = hashFunctions.H1(KwPrime, Tw_c1);
 //            BigInteger skw_c1 = hashFunctions.H2(KwPrime, c + 1);
 //            // 设置位图
-//            B b = new B(maxFiles);
+//            BitMp b = new BitMp(maxFiles);
 //            for (int fileIndex : files) {
 //                if ("add".equals(op)) {
 //                    b.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
@@ -554,9 +554,9 @@
 //////            BigInteger id = (BigInteger) result[0];
 //////            BitSet bitMap = new BitSet(MAX_FILES); // 创建一个长度为2^20的 BitSet, 支持最多2^20个文件
 //////            TDSC2023_BITSET.homomorphicEncryption.setBit(bitMap, id.intValue()); // 将id转换为长度为2^20，第id位为1的bitmap
-//////            BigInteger B = TDSC2023_BITSET.homomorphicEncryption.processBitMapExistence(bitMap); // 将位图序列转换为BigInteger值
+//////            BigInteger BitMp = TDSC2023_BITSET.homomorphicEncryption.processBitMapExistence(bitMap); // 将位图序列转换为BigInteger值
 //////            // 对此位置执行同态加法以产生反向操作（将1变为0）,update时，将该值视为B
-//////            BigInteger B_deleteId = TDSC2023_BITSET.homomorphicEncryption.getN().subtract(B);
+//////            BigInteger B_deleteId = TDSC2023_BITSET.homomorphicEncryption.getN().subtract(BitMp);
 ////
 ////            long[] pSet = (long[]) result[1];
 ////            String[] W = (String[]) result[2];

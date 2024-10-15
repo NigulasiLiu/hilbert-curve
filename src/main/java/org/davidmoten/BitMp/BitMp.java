@@ -4,12 +4,12 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
-public class B {
+public class BitMp {
     private byte[] bits;
     private final int size;
 
     // 构造函数，初始化长度为size的bit数组
-    public B(int size) {
+    public BitMp(int size) {
         this.size = size;
         this.bits = new byte[(size + 7) / 8]; // 每8位存储在一个byte中
     }
@@ -36,7 +36,7 @@ public class B {
         return bits;
     }
     // 与操作：this & other
-    public void and(B other) {
+    public void and(BitMp other) {
         if (this.size != other.size) throw new IllegalArgumentException("Sizes must match");
         for (int i = 0; i < bits.length; i++) {
             this.bits[i] &= other.bits[i];
@@ -54,7 +54,7 @@ public class B {
 //    }
 
     // 或操作：this | other
-    public void or(B other) {
+    public void or(BitMp other) {
         if (this.size != other.size) throw new IllegalArgumentException("Sizes must match");
         for (int i = 0; i < bits.length; i++) {
             this.bits[i] |= other.bits[i];
@@ -72,7 +72,7 @@ public class B {
 //    }
 
     // 异或操作：this ^ other
-    public void xor(B other) {
+    public void xor(BitMp other) {
         if (this.size != other.size) throw new IllegalArgumentException("Sizes must match");
         for (int i = 0; i < bits.length; i++) {
             this.bits[i] ^= other.bits[i];
@@ -196,8 +196,8 @@ public class B {
     }
 
     public static void main(String[] args) {
-        // 创建一个长度为 1<<20 的 B 实例
-        B bitset = new B(1 << 20);
+        // 创建一个长度为 1<<20 的 BitMp 实例
+        BitMp bitset = new BitMp(1 << 20);
 
         // 设置第 0 位和第 10 位为 1
         bitset.setBit(0);

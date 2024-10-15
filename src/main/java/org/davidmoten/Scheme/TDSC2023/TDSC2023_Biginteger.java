@@ -29,7 +29,7 @@ public class TDSC2023_Biginteger {
     private static final String HASH_ALGORITHM = "SHA-256";
     private String KS; // 主密钥
     private int lambda; // 公共参数
-    private Map<String, Integer> T; // 计数器表
+    public Map<String, Integer> T; // 计数器表
     private ConcurrentHashMap<String, BigInteger> PDB;
     private ConcurrentHashMap<String, BigInteger> KDB;
     private DPRF dprf; // 使用 DPRF 进行密钥派生
@@ -68,6 +68,7 @@ public class TDSC2023_Biginteger {
         this.hilbertCurve = HilbertCurve.bits(order).dimensions(dimension);
         this.bpcGenerator = new BPCGenerator(order * 2); // Hilbert曲线编码最大值为2^(2*order)
     }
+
     // 生成主密钥
     private String generateMasterKey(int securityParameter) throws NoSuchAlgorithmException {
         SecureRandom secureRandom = SecureRandom.getInstanceStrong();
@@ -159,16 +160,8 @@ public class TDSC2023_Biginteger {
         return BinaryResults;
     }
 
-//    private String[] F_K_sigma(String KS, String input) throws Exception {
-//        hashFunctions.hmacSHA256.init(new SecretKeySpec(KS.getBytes(StandardCharsets.UTF_8), HMAC_SHA256));
-//        byte[] result = hashFunctions.hmacSHA256.doFinal(input.getBytes(StandardCharsets.UTF_8));
-//        String K = Base64.getEncoder().encodeToString(Arrays.copyOfRange(result, 0, result.length / 2));
-//        String KPrime = Base64.getEncoder().encodeToString(Arrays.copyOfRange(result, result.length / 2, result.length));
-//        return new String[]{K, KPrime};
-//    }
-
     private int getCounter(String input) {
-        return T.getOrDefault(input, 0);
+        return T.getOrDefault(input, -1);
     }
 
     // 更新操作
@@ -186,15 +179,14 @@ public class TDSC2023_Biginteger {
             Kp = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
             Kp_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4); // 假设 LAMBDA / 4 是所需的长度
 
-//            String[] keys = F_K_sigma(KS, p);
-//            String Kp = keys[0];
-//            String KpPrime = keys[1];
-            int c = T.getOrDefault(p, 0);
+            int c = T.getOrDefault(p, -1);
 
             // 使用 DPRF.Derive获取Tp_c_plus_1
             byte[] Tp_c_plus_1 = dprf.Derive(new SecretKeySpec(Kp, HMAC_ALGORITHM), c + 1);
+//            System.out.println("Tp_c_plus_1:"+ Arrays.toString(Tp_c_plus_1));
             T.put(p, c + 1);
-            byte[] UTp_c_plus_1 = hashFunction1(Kp, Tp_c_plus_1);
+            byte[] UTp_c_plus_1 = hashFunction1(Kp_prime, Tp_c_plus_1);
+//            System.out.println("UTp_c_plus_1:"+ Arrays.toString(UTp_c_plus_1));
             BigInteger skp_c1 = hashFunction2(Kp_prime, c + 1);
 
             long startTime2 = System.nanoTime();            // 设置位图
@@ -209,7 +201,7 @@ public class TDSC2023_Biginteger {
 
             BigInteger ep_c1 = skp_c1.add(B).mod(n);
             long startTime4 = System.nanoTime();
-            PDB.put(new String(UTp_c_plus_1), ep_c1);
+            PDB.put(new String(UTp_c_plus_1, StandardCharsets.UTF_8), ep_c1);
 //            System.out.println("TDSC_BITSET per ptime1: " + (startTime2-startTime1) / 1_000_000.0 + " ms.");
 //            System.out.println("TDSC_BITSET per ptime2: " + (startTime3-startTime2) / 1_000_000.0 + " ms.");
 //            System.out.println("TDSC_BITSET per ptime3: " + (startTime4-startTime3) / 1_000_000.0 + " ms.");
@@ -221,12 +213,12 @@ public class TDSC2023_Biginteger {
             Kp = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
             Kp_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4); // 假设 LAMBDA / 4 是所需的长度
 
-            int c = T.getOrDefault(w, 0);
+            int c = T.getOrDefault(w, -1);
 
             // 使用 DPRF 来生成 DelKey 和 Derive
             byte[] Tw_c1 = dprf.Derive(new SecretKeySpec(Kp, HMAC_ALGORITHM), c + 1);
             T.put(w, c + 1);
-            byte[] UTw_c1 = hashFunction1(Kp, Tw_c1);
+            byte[] UTw_c1 = hashFunction1(Kp_prime, Tw_c1);
             BigInteger skw_c1 = hashFunction2(Kp_prime, c + 1);
             // 设置位图
             BigInteger B = BigInteger.ZERO;  // 使用 BigInteger 作为位图
@@ -238,11 +230,11 @@ public class TDSC2023_Biginteger {
                 }
             }
             BigInteger ew_c1 = skw_c1.add(B).mod(n);
-            KDB.put(new String(UTw_c1), ew_c1);
+            KDB.put(new String(UTw_c1, StandardCharsets.UTF_8), ew_c1);
         }
         long wTime = System.nanoTime();
         // 输出总耗时
-        double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
+        double totalLoopTimeMs = (System.nanoTime() - startTime) / 1_000_000.0;
 //        System.out.println("TDSC2023_BITSET Total update time: " + totalLoopTimeMs + " ms).");
 //        System.out.println("TDSC2023_BITSET ptime: " + (pTime-startTime) / 1_000_000.0 + " ms.");
 //        System.out.println("TDSC2023_BITSET wtime: " + (wTime-pTime) / 1_000_000.0 + " ms.");
@@ -251,55 +243,76 @@ public class TDSC2023_Biginteger {
         totalUpdateTimes.add(totalLoopTimeMs);
 //        System.out.println("Update operation completed.");
     }
+
     // 整合客户端和服务器的搜索操作
     public BigInteger Search(BigInteger R_min, BigInteger R_max, String[] WQ) throws Exception {
+        byte[] combinedKey;
+        byte[] Kp;
+        byte[] Kp_prime;
         // 客户端：生成搜索请求
         long startTime = System.nanoTime();
         List<String> BPC = preCover(R_min, R_max);
-        BigInteger SumP = BigInteger.ZERO;
         long client_time2 = System.nanoTime();
+        BigInteger SumP = BigInteger.ZERO;
+        boolean exist = true;
         for (String p : BPC) {
             // 客户端处理
-            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
-            byte[] Kp = new byte[LAMBDA / 8];
-            byte[] Kp_prime = new byte[LAMBDA / 8];
-            System.arraycopy(combinedKey, 0, Kp, 0, LAMBDA / 8);
-            System.arraycopy(combinedKey, LAMBDA / 8, Kp_prime, 0, LAMBDA / 8);
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
+            Kp = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
+            Kp_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4);
             int c = getCounter(p);
-            Key STp = dprf.DelKey(new String(Kp_prime), c);
-//            clientRequest_p.add(new Object[]{Kp_prime, STp, c});
-
+            if (c == -1) {
+//                System.out.println("没有匹配的结果");
+                continue;
+            }
+//            Key STp = dprf.DelKey(Kp_prime, c);
+            Key STp = dprf.DelKey(Kp, c);
+//            System.out.println("STp:"+ STp);
             // 服务器处理
             BigInteger SumPe = BigInteger.ZERO;
             // 从 c 开始迭代
             for (int i = c; i >= 0; i--) {
                 byte[] Ti = dprf.Derive(STp, i);
-//                String Ti = HMAC_SHA256;
+//                System.out.println("Ti:"+ Arrays.toString(Ti));
                 byte[] UTi = hashFunction1(Kp_prime, Ti);
+//                System.out.println("UTi:"+ Arrays.toString(UTi));
 
-                BigInteger e_p_i = PDB.get(new String(UTi));
+                BigInteger e_p_i = PDB.get(new String(UTi, StandardCharsets.UTF_8));
+//                System.out.println("c:"+c);
+//                System.out.println(new String(UTi, StandardCharsets.UTF_8) + ": ");
+//                for (Map.Entry<String, BigInteger> entry : PDB.entrySet()) {
+//                    System.out.println("c:"+c);
+//                    System.out.println(entry.getKey() + ": " + entry.getValue());
+//                }
                 if (e_p_i == null) {
+//                    System.out.println("e_p_i = null");
                     break;
                 } else {
                     SumPe = SumPe.add(e_p_i).mod(n);
-                    PDB.remove(new String(UTi)); // 将密文标记为已删除
+                    PDB.remove(new String(UTi, StandardCharsets.UTF_8)); // 将密文标记为已删除
                 }
             }
             byte[] Tc = dprf.Derive(STp, c);
             byte[] UTc = hashFunction1(Kp_prime, Tc);
-            PDB.put(new String(UTc), SumPe); // 将最新的索引更新至UTc
+            PDB.put(new String(UTc, StandardCharsets.UTF_8), SumPe); // 将最新的索引更新至UTc
             SumP = SumP.add(SumPe).mod(n);
         }
+
         List<BigInteger> SumWList = new ArrayList<>();
         for (String w : WQ) {
             // 客户端处理
-            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
             byte[] Kw = new byte[LAMBDA / 8];
             byte[] Kw_prime = new byte[LAMBDA / 8];
-            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
-            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
+            Kw = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
+            Kw_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4);
             int c = getCounter(w);
-            Key STw = dprf.DelKey(new String(Kw), c);
+            if (c == -1) {
+                exist = false;
+//                System.out.println("没有匹配"+w+"的结果");
+                break;
+            }
+            Key STw = dprf.DelKey(Kw, c);
 //            clientRequest_w.add(new Object[]{Kw_prime, STw, c});
             BigInteger SumWe = BigInteger.ZERO;
 
@@ -309,25 +322,28 @@ public class TDSC2023_Biginteger {
                 byte[] Ti = dprf.Derive(STw, i);
                 byte[] UTi = hashFunction1(Kw_prime, Ti);
 
-                BigInteger e_p_i = KDB.get(new String(UTi));
+                BigInteger e_p_i = KDB.get(new String(UTi, StandardCharsets.UTF_8));
                 if (e_p_i == null) {
                     break;
                 } else {
                     SumWe = SumWe.add(e_p_i).mod(n);
-                    KDB.remove(new String(UTi)); // 将密文标记为已删除
+                    KDB.remove(new String(UTi, StandardCharsets.UTF_8)); // 将密文标记为已删除
                 }
             }
             byte[] Tc = dprf.Derive(STw, c);
             byte[] UTc = hashFunction1(Kw_prime, Tc);
-            KDB.put(new String(UTc), SumWe); // 将最新的索引更新至UTc
+            KDB.put(new String(UTc, StandardCharsets.UTF_8), SumWe); // 将最新的索引更新至UTc
             SumWList.add(SumWe);
+        }
+        if(!exist){
+            return BigInteger.ZERO;
         }
         //客户端解密阶段
         long client_time3 = System.nanoTime();
         BigInteger SumP_sk = BigInteger.ZERO;
         for (String p : BPC) {
-            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
-            byte[] Kp_prime = new byte[LAMBDA / 8];
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
+            Kp_prime = new byte[LAMBDA / 8];
             System.arraycopy(combinedKey, LAMBDA / 8, Kp_prime, 0, LAMBDA / 8);
             int c = getCounter(p);
 
@@ -338,9 +354,11 @@ public class TDSC2023_Biginteger {
         }
         // 解密前缀部分
         BigInteger BR = SumP.subtract(SumP_sk).add(n).mod(n);
+//        System.out.println("BR1:");
+//        findIndexesOfOne(BR);
         for (int j = 0; j < WQ.length; j++) {
             String w = WQ[j];
-            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
             byte[] Kw_prime = new byte[LAMBDA / 8];
             System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
             int c = getCounter(w);
@@ -353,14 +371,16 @@ public class TDSC2023_Biginteger {
             // 解密并与前缀部分进行与操作
             BR = BR.and(SumWList.get(j).subtract(SumW_sk).add(n).mod(n));
         }
+//        System.out.println("BR2:");
+//        findIndexesOfOne(BR);
         long client_time4 = System.nanoTime();
         // 输出总耗时
-        double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
+        double totalLoopTimeMs = (System.nanoTime() - startTime) / 1_000_000.0;
 //        System.out.println("TDSC2023_Biginteger Total search time: " + totalLoopTimeMs + " ms).");
         // 客户端部分结束计时
         long server_time2 = System.nanoTime();
         // 输出客户端和服务器端的时间消耗
-        double msclient_time =((client_time2 - startTime)+(client_time4 - client_time3))/ 1_000_000.0;
+        double msclient_time = ((client_time2 - startTime) + (client_time4 - client_time3)) / 1_000_000.0;
         double msserver_time = (client_time3 - client_time2) / 1_000_000.0;
         double total_time = msclient_time + msserver_time;
 //        System.out.println("TDSC: Client time part 1: " + msclient_time1 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
@@ -385,6 +405,7 @@ public class TDSC2023_Biginteger {
         hmac.init(keySpec);
         return hmac.doFinal(keyword.getBytes(StandardCharsets.UTF_8));
     }
+
     /**
      * 安全哈希函数 H1, H2
      *
@@ -401,6 +422,7 @@ public class TDSC2023_Biginteger {
         messageDigest.update(input2);
         return messageDigest.digest();
     }
+
     private BigInteger hashFunction2(byte[] input1, int input2) {
         messageDigest.reset(); // 重置MessageDigest实例
         messageDigest.update(input1);
@@ -410,9 +432,10 @@ public class TDSC2023_Biginteger {
         intBuffer[2] = (byte) (input2 >> 8);
         intBuffer[3] = (byte) input2;
         messageDigest.update(intBuffer);
-        return new BigInteger(1,messageDigest.digest());
+        return new BigInteger(1, messageDigest.digest());
     }
-    public static Object[] GetRandomItem(int W_num,String FILE_PATH) throws IOException {
+
+    public static Object[] GetRandomItem(int W_num, String FILE_PATH) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(FILE_PATH));
         String selectedRow = null;
         String line;
@@ -464,6 +487,7 @@ public class TDSC2023_Biginteger {
         // 返回pSet和W
         return new Object[]{id, pSet, W};
     }
+
     public double getAverageSearchTime() {
         if (clientSearchTimes.size() != serverSearchTimes.size() || clientSearchTimes.isEmpty()) {
             System.out.println("列表大小不一致或者为空，无法计算平均搜索时间。");
@@ -476,6 +500,7 @@ public class TDSC2023_Biginteger {
                 .average()
                 .orElse(0.0);
     }
+
     public void removeExtremesUpdateTime() {
         if (totalUpdateTimes.size() > 2) { // 确保列表中至少有3个元素
             // 找到最大值和最小值的索引
@@ -564,8 +589,125 @@ public class TDSC2023_Biginteger {
 
 
     public static void main(String[] args) throws Exception {
-        System.out.println("程序结束。");
+        // 设置一些参数
+        int securityParameter = 128; // 安全参数 λ
+        int maxnums_w = 6; // 关键字数量
+        int maxFiles = 1 << 20; // 最大文件数
+        int order = 12; // Hilbert curve 阶数
+        int dimension = 2; // 维度
+
+        // 初始化 TDSC2023_Biginteger 实例
+        TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(securityParameter, maxnums_w, maxFiles, order, dimension);
+
+        // 创建随机生成器和一些测试数据
+        Random random = new Random();
+        int numObjects = 1; // 插入5个对象进行测试
+        int rangePredicate = 10000;
+
+        // 初始化测试对象的数据
+        long[][] pSets = new long[numObjects][2];
+        String[][] WSets = new String[numObjects][maxnums_w];
+        int[][] fileSets = new int[numObjects][1]; // 每个对象关联一个文件
+
+        // 填充对象数据
+        for (int i = 0; i < numObjects; i++) {
+            // 创建pSet (二维数据)
+            pSets[i][0] = random.nextInt(10000);
+            pSets[i][1] = pSets[i][0] + 1;
+
+            // 创建关键词W
+            for (int j = 0; j < maxnums_w; j++) {
+                WSets[i][j] = "keyword" + (random.nextInt(100) + 1);
+            }
+
+            // 关联一个文件
+            fileSets[i][0] = random.nextInt(maxFiles);
+        }
+
+        // 打印插入的数据
+        System.out.println("即将插入的数据:");
+        for (int i = 0; i < numObjects; i++) {
+            System.out.println("Object " + (i + 1) + ":");
+            System.out.println("  pSet: " + Arrays.toString(pSets[i]));
+            System.out.println("  W: " + Arrays.toString(WSets[i]));
+            System.out.println("  File ID: " + Arrays.toString(fileSets[i]));
+        }
+        // 执行update操作（插入数据）
+        System.out.println("插入操作开始...");
+//        printMap(tdsc2023.T);
+//        System.out.println("PDB:");
+//        printMap(tdsc2023.PDB);
+//        System.out.println("KDB:");
+//        printMap(tdsc2023.KDB);
+        for (int i = 0; i < numObjects; i++) {
+            tdsc2023.update(pSets[i], WSets[i], "add", fileSets[i], rangePredicate);
+        }
+        System.out.println("插入操作完成。");
+//        printMap(tdsc2023.T);
+//        System.out.println("PDB:");
+//        printMap(tdsc2023.PDB);
+//        System.out.println("KDB:");
+//        printMap(tdsc2023.KDB);
+        // 测试搜索操作
+        System.out.println("开始搜索...");
+        for (int i = 0; i < numObjects; i++) {
+            // 通过 Hilbert 曲线计算范围
+            BigInteger pointHilbertIndex = tdsc2023.hilbertCurve.index(pSets[i]);
+            BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(100));
+            BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(100));
+
+            // 执行搜索操作
+            BigInteger result = tdsc2023.Search(R_min, R_max, WSets[i]);
+
+            // 打印搜索结果
+            System.out.println("\n搜索结果 (pSet " + Arrays.toString(pSets[i]) + "): ");
+            findIndexesOfOne(result); // 打印出结果中的位图索引
+        }
+        System.out.println("搜索操作完成。");
+
+        // 打印时间统计
+        System.out.println("平均更新时间: " + tdsc2023.getAverageUpdateTime() + " ms");
+        System.out.println("平均客户端搜索时间: " + tdsc2023.getAverageClientTime() + " ms");
+        System.out.println("平均服务器搜索时间: " + tdsc2023.getAverageServerTime() + " ms");
+
+//        tdsc2023.printTimes();
     }
+    public static void findIndexesOfOne(BigInteger number) {
+        // 收集所有位索引
+        List<Integer> indexes = new ArrayList<>();
+        int index = 0;
 
+        // 遍历所有可能的位
+        while (number.signum() != 0) {
+            // 检查当前最低位是否为1
+            if (number.and(BigInteger.ONE).equals(BigInteger.ONE)) {
+                // 收集当前位的索引
+                indexes.add(index);
+            }
 
+            // 右移一位处理下一位
+            number = number.shiftRight(1);
+            index++;
+        }
+
+        // 打印结果
+        if (indexes.isEmpty()) {
+            System.out.println("没有找到1位。");
+        } else {
+            System.out.println("位图中1的位置索引为：");
+            for (Integer idx : indexes) {
+                System.out.println("索引: " + idx);
+            }
+        }
+    }
+    // 通用方法，用于打印任何类型的Map中的内容
+    public static <K, V> void printMap(Map<K, V> map) {
+        if (map != null) {
+            for (Map.Entry<K, V> entry : map.entrySet()) {
+                System.out.println(entry.getKey()+ ": " + entry.getValue());
+            }
+        } else {
+            System.out.println("Map is empty or not initialized.");
+        }
+    }
 }

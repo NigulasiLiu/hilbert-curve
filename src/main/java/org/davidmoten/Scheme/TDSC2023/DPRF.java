@@ -17,7 +17,7 @@ public class DPRF {
     }
 
     // 生成委托密钥 ST
-    public Key DelKey(String K, int c_from_counter) throws Exception {
+    public Key DelKey(byte[] K, int c_from_counter) throws Exception {
         // 检查 c_from_counter 是否在允许的范围内
         if (!isInRange(c_from_counter)) {
             throw new IllegalArgumentException("Counter out of range: " + c_from_counter + " not in [0, " + c_max + "]");
@@ -25,7 +25,8 @@ public class DPRF {
 
         // 在DelKey中实现GGM PRF
         // 调用GGM PRF来生成基于谓词（counter）的委托密钥
-        return new SecretKeySpec(GGM_PRF(K, c_from_counter).getBytes(StandardCharsets.UTF_8), HMAC_SHA256);
+//        return new SecretKeySpec(GGM_PRF(K, c_from_counter).getBytes(StandardCharsets.UTF_8), HMAC_SHA256);
+        return new SecretKeySpec(K, HMAC_SHA256);
     }
 
 //    // GGM PRF 的 Derive 实现

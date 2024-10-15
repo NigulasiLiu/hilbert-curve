@@ -180,6 +180,7 @@ public class SPQS_Biginteger {
         double totalServerTime = 0.0;
         //存储p位图结果
         BigInteger Sump = BigInteger.ZERO;
+        boolean exist = true;
         // 客户端处理前缀集合
         for (String p : BPC) {
             //Sump = Sump.or(search(p));
@@ -190,14 +191,19 @@ public class SPQS_Biginteger {
 
             // Step 1: 生成Kw和Kw_prime (客户端)
             byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
-            byte[] Kw = new byte[LAMBDA / 8];
-            byte[] Kw_prime = new byte[LAMBDA / 8];
-            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
-            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
+            byte[] Kp = new byte[LAMBDA / 8];
+            byte[] Kp_prime = new byte[LAMBDA / 8];
+            System.arraycopy(combinedKey, 0, Kp, 0, LAMBDA / 8);
+            System.arraycopy(combinedKey, LAMBDA / 8, Kp_prime, 0, LAMBDA / 8);
 
             // Step 2: 获取客户端的当前关键词状态
-            int[] state = SC.getOrDefault(p, new int[]{0, -1, getRandomFromPool()});
-
+            int[] state = SC.get(p);
+            // 若state为null，则跳出循环
+            if (state == null) {
+//                exist = false;
+//                System.out.println("没有匹配:"+p+"的结果");
+                continue;
+            }
             // Step 3: 检查状态是否为null
 
             // 记录 Rc, c0, c (客户端)
@@ -213,7 +219,7 @@ public class SPQS_Biginteger {
 
             // Step 1: 检查 SS[Kw] 的状态 (服务器)
             // 如果不存在，则初始化为全0的BigInteger
-            BigInteger ep = SS.getOrDefault(new String(Kw, StandardCharsets.UTF_8), BigInteger.ZERO); // 从SS中读取
+            BigInteger ep = SS.getOrDefault(new String(Kp, StandardCharsets.UTF_8), BigInteger.ZERO); // 从SS中读取
             // Step 2: 初始化一个空的map来存储结果E (服务器)
             Map<Integer, BigInteger[]> E = new HashMap<>();
 
@@ -221,7 +227,7 @@ public class SPQS_Biginteger {
             int Ri = Rc;
             for (int i = c; i >= c0; i--) {
                 // Step 4: 计算I
-                byte[] I = hashFunction(Kw, Ri);
+                byte[] I = hashFunction(Kp, Ri);
 
                 // Step 5: 从PDB中检索密文
                 Object[] ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
@@ -236,7 +242,7 @@ public class SPQS_Biginteger {
 
                 // Step 8: 更新Ri-1 = C ⊕ H2(Kw, Ri)
                 byte[] C = (byte[]) ciphertext[0];
-                Ri = new BigInteger(C).xor(new BigInteger(hashFunction(Kw, Ri))).intValue();
+                Ri = new BigInteger(C).xor(new BigInteger(hashFunction(Kp, Ri))).intValue();
             }
 
             // 服务器部分结束计时
@@ -250,9 +256,9 @@ public class SPQS_Biginteger {
 
             // Step 2-3: 解密ep (客户端)
             if (!ep.equals(BigInteger.ZERO)) {
-                byte[] H5 = hashFunction(Kw_prime, c0);
-                BigInteger H5BigInt = new BigInteger(1, H5);
-                bsp = ep.xor(H5BigInt);  // 执行异或操作
+                byte[] H5 = hashFunction(Kp_prime, c0);
+                BigInteger H5BigIntHash = new BigInteger(1, H5);
+                bsp = ep.xor(H5BigIntHash);  // 执行异或操作
             }
 
             // Step 5: 循环解密每个密文并更新bsw (客户端)
@@ -261,7 +267,7 @@ public class SPQS_Biginteger {
                 BigInteger ea = encryptPDBiBitmap[0];
                 BigInteger eb = encryptPDBiBitmap[1];
 
-                BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kw_prime, i));
+                BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kp_prime, i));
 //                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
                 BigInteger bsa = ea.xor(hashKw_prime_H3);
                 BigInteger bsb = eb.xor(hashKw_prime_H3);
@@ -274,7 +280,7 @@ public class SPQS_Biginteger {
             int Rc_plus_1 = getRandomFromPool();
             SC.put(p, new int[]{c + 1, c, Rc_plus_1});
             // Step 11: 重新加密 bsw
-            byte[] H5 = hashFunction(Kw_prime, c + 1);
+            byte[] H5 = hashFunction(Kp_prime, c + 1);
             ep = bsp.xor(new BigInteger(1, H5));
 
             // 客户端接收部分结束计时
@@ -287,11 +293,9 @@ public class SPQS_Biginteger {
 //            double loopDurationMs = loopDurationNs / 1_000_000.0;
             //System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
 
-            // Step 13: 将新的加密状态 ep 发送到服务器
-            PDB.put(new String(Kw, StandardCharsets.UTF_8), new Object[]{ep});
 
             // 服务器更新 SS
-            SS.put(new String(Kw, StandardCharsets.UTF_8), ep);
+            SS.put(new String(Kp, StandardCharsets.UTF_8), ep);
             // 输出客户端和服务器端的时间消耗
             double msclient_time1 = (client_time2 - client_time1) / 1_000_000.0;
             double msclient_time2 = (client_time4 - client_time3) / 1_000_000.0;
@@ -305,6 +309,7 @@ public class SPQS_Biginteger {
 //            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
             Sump = Sump.or(bsp);
         }
+
         //存储w位图结果
         BigInteger Sumw = BigInteger.ZERO;
         // 客户端处理关键字集合
@@ -322,8 +327,19 @@ public class SPQS_Biginteger {
             System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
 
             // Step 2: 获取客户端的当前关键词状态
-            int[] state = SC.getOrDefault(w, new int[]{0, -1, getRandomFromPool()});
-
+            int[] state = SC.get(w);
+//                if (SC != null) {
+//                    for (Map.Entry<String, int[]> entry : SC.entrySet()) {
+//                        System.out.println(entry.getKey() + ": " + Arrays.toString(entry.getValue()));
+//                    }
+//                } else {
+//                    System.out.println("Map is empty or not initialized.");
+//                }
+            if (state == null) {
+                exist = false;
+                System.out.println("没有匹配:"+w+"的结果");
+                break;
+            }
             // Step 3: 检查状态是否为null
 
             // 记录 Rc, c0, c (客户端)
@@ -414,9 +430,6 @@ public class SPQS_Biginteger {
 //            double loopDurationMs = loopDurationNs / 1_000_000.0;
             //System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
 
-            // Step 13: 将新的加密状态 ew 发送到服务器
-            KDB.put(new String(Kw, StandardCharsets.UTF_8), new Object[]{ew});
-
             // 服务器更新 SS
             SS.put(new String(Kw, StandardCharsets.UTF_8), ew);
             // 输出客户端和服务器端的时间消耗
@@ -432,11 +445,14 @@ public class SPQS_Biginteger {
 //            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
             Sumw = Sumw.or(bsw);
         }
+        if(!exist) return BigInteger.ZERO;
         // 将累计的客户端和服务器时间分别存储到列表中
         clientSearchTimes.add(totalClientTime);
         serverSearchTimes.add(totalServerTime);
         // 输出总耗时
         double totalLoopTimeMs = totalLoopTime / 1_000_000.0;
+//        findIndexesOfOne(Sump);
+//        findIndexesOfOne(Sumw);
 //        System.out.println("Total loop time: " + totalLoopTime + " ns (" + totalLoopTimeMs + " ms).");
 //        System.out.println("SPQS_BITSET Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1_000_000.0)) + " ms).");
         return Sump.and(Sumw);
@@ -580,9 +596,6 @@ public class SPQS_Biginteger {
                 W[i] = null;
             }
         }
-
-
-
         // 返回pSet和W
         return new Object[]{id, pSet, W};
     }
@@ -795,73 +808,88 @@ public class SPQS_Biginteger {
             System.out.println("Completed batch " + (i / batchSize + 1) + " of updates.");
         }
     }
-
-    // 测试SR-DSSE算法的运行
     public static void main(String[] args) throws Exception {
-//        SPQS_Biginteger spqs = new SPQS_Biginteger();
-//        spqs.setup(LAMBDA, MAX_FILES);
+        // 定义参数
+        int maxFiles = 1 << 20; // 最大文件数，2^20
+        int order = 17; // Hilbert curve 阶数
+        int dimension = 2; // 维度
 
-        // 示例文件的索引
-//        int[] fileIndexes = {0, 2, 1 << 19};  // 假设文件有索引0, 2, 1<<19 + 1
-//        int[] fileIndexes1 = {2, 3};  // 假设文件有索引0, 2, 1<<19 + 1
+        // 初始化 SPQS_Biginteger 实例
+        SPQS_Biginteger spqs = new SPQS_Biginteger(maxFiles, order, dimension);
 
-//        spqs.update("w1", "add", fileIndexes);
-//        spqs.update("w1", "add", fileIndexes1);
-//        spqs.update("w3", "del", fileIndexes);
-//        spqs.update("w1", "del", fileIndexes);
-//        spqs.search("w1");
-//        spqs.search("w3");
+        // 模拟一些数据
+        Random random = new Random();
+        int numObjects = 1; // 插入5个对象进行测试
+        int rangePredicate = 1000;
 
-        // 进行主流程测试
-//        while (true) {
-//            // 模拟从数据集中获取一项数据
-//            Object[] result = GetRandomItem(12);
-//            if (result == null) {
-//                System.out.println("获取数据失败。");
-//                continue;
-//            }
-//
-//            int[] files = new int[]{((BigInteger) result[0]).intValue()};
-//            long[] pSet = (long[]) result[1];
-//            String[] W = (String[]) result[2];
-//            BigInteger pointHilbertIndex = spqs.hilbertCurve.index(pSet);
-//            // 统计 update 方法的运行时间
-//            spqs.ObjectUpdate(pSet, W, "add", files, maxnums_w);
-//
-//            // 获取用户输入的搜索参数
-//            Scanner scanner = new Scanner(System.in);
-//
-//            System.out.print("请输入 R_min: ");
-//            BigInteger R_min = scanner.nextBigInteger();
-//
-//            System.out.print("请输入 R_max: ");
-//            BigInteger R_max = scanner.nextBigInteger();
-//
-//            System.out.print("请输入关键字数量: ");
-//            int WQSize = scanner.nextInt();
-//            scanner.nextLine(); // 清除换行符
-//
-//            String[] WQ = new String[WQSize];
-//            for (int i = 0; i < WQSize; i++) {
-//                System.out.print("请输入关键字 WQ[" + i + "]: ");
-//                WQ[i] = scanner.nextLine();
-//            }
-//
-//            BigInteger BR = spqs.ObjectSearch(R_min, R_max, WQ);
-//            // 返回最终解密后的位图信息 BR
-//            findIndexesOfOne(BR);
-//
-//            spqs.ObjectUpdate(pSet, W, "del", files, maxnums_w);
-//
-//            // 继续进行下一个循环
-//            System.out.print("是否继续？(yes/no): ");
-//            String response = scanner.nextLine();
-//            if (!response.equalsIgnoreCase("yes")) {
-//                break;
-//            }
-//        }
+        // 初始化测试对象的数据
+        long[][] pSets = new long[numObjects][2];
+        String[][] WSets = new String[numObjects][6]; // 假设每个对象有6个关键词
+        int[][] fileSets = new int[numObjects][1]; // 每个对象关联一个文件
 
-        System.out.println("程序结束。");
+        // 填充对象数据
+        for (int i = 0; i < numObjects; i++) {
+            // 创建pSet (二维数据)
+            pSets[i][0] = random.nextInt(1<<(order-1));
+            pSets[i][1] = pSets[i][0] + 1;
+
+            // 创建关键词W
+            for (int j = 0; j < 6; j++) {
+                WSets[i][j] = "keyword" + (random.nextInt(100) + 1);
+            }
+
+            // 关联一个文件
+            fileSets[i][0] = random.nextInt(maxFiles);
+        }
+
+        // 打印插入的数据
+        System.out.println("即将插入的数据:");
+        for (int i = 0; i < numObjects; i++) {
+            System.out.println("Object " + (i + 1) + ":");
+            System.out.println("  pSet: " + Arrays.toString(pSets[i]));
+            System.out.println("  W: " + Arrays.toString(WSets[i]));
+            System.out.println("  File ID: " + Arrays.toString(fileSets[i]));
+        }
+
+        if (spqs.SC != null) {
+            for (Map.Entry<String, int[]> entry : spqs.SC.entrySet()) {
+                System.out.println(entry.getKey() + ": " + Arrays.toString(entry.getValue()));
+            }
+        } else {
+            System.out.println("Map is empty or not initialized.");
+        }
+        // 执行 update 操作（插入数据）
+        System.out.println("插入操作开始...");
+        for (int i = 0; i < numObjects; i++) {
+            spqs.ObjectUpdate(pSets[i], WSets[i], "add", fileSets[i], rangePredicate);
+        }
+        System.out.println("插入操作完成。");
+
+        // 测试 search 操作
+        System.out.println("开始搜索...");
+        for (int i = 0; i < numObjects; i++) {
+            // 通过 Hilbert 曲线计算范围
+            BigInteger pointHilbertIndex = spqs.hilbertCurve.index(pSets[i]);
+            System.out.println("Hilbert Index:"+pointHilbertIndex);
+            BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(100));
+            BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(100));
+
+            // 执行搜索操作
+            BigInteger result = spqs.ObjectSearch(R_min, R_max, WSets[i]);
+
+            // 打印搜索结果
+            System.out.println("\n搜索结果 (pSet " + Arrays.toString(pSets[i]) + "): ");
+            findIndexesOfOne(result); // 打印出结果中的位图索引
+        }
+        System.out.println("搜索操作完成。");
+
+        // 打印时间统计
+        System.out.println("平均更新时间: " + spqs.getAverageUpdateTime() + " ms");
+        System.out.println("平均客户端搜索时间: " + spqs.getAverageClientTime() + " ms");
+        System.out.println("平均服务器搜索时间: " + spqs.getAverageServerTime() + " ms");
+
+//        spqs.printTimes();
     }
+
 }
 
