@@ -33,6 +33,7 @@ public class TDSC2023_Biginteger {
     private ConcurrentHashMap<String, BigInteger> PDB;
     private ConcurrentHashMap<String, BigInteger> KDB;
     private DPRF dprf; // 使用 DPRF 进行密钥派生
+    public final Mac hmac;
 
     private int dimension; // 2维数据
     private int order; // Hilbert curve 阶数
@@ -48,6 +49,7 @@ public class TDSC2023_Biginteger {
     public TDSC2023_Biginteger(int securityParameter, int maxnums_w, int maxFiles, int order, int dimension) throws Exception {
 //        this.maxnums_w = maxnums_w;
 //        this.filePath = filePath;
+        this.hmac = Mac.getInstance(HMAC_ALGORITHM);
         this.messageDigest = MessageDigest.getInstance(HASH_ALGORITHM);
         this.maxFiles = maxFiles;
         this.n = BigInteger.valueOf(2).pow(maxFiles);
@@ -379,7 +381,6 @@ public class TDSC2023_Biginteger {
      * @throws InvalidKeyException
      */
     private byte[] pseudoRandomFunction(byte[] key, String keyword) throws NoSuchAlgorithmException, InvalidKeyException {
-        Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
         SecretKeySpec keySpec = new SecretKeySpec(key, HMAC_ALGORITHM);
         hmac.init(keySpec);
         return hmac.doFinal(keyword.getBytes(StandardCharsets.UTF_8));

@@ -1,4 +1,4 @@
-package org.davidmoten.B;
+package org.davidmoten.BitMp;
 
 import java.math.BigInteger;
 import java.util.ArrayList;

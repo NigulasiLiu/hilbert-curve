@@ -9,14 +9,14 @@ import java.util.Random;
 
 public class UpdateTest {
     public static void main(String[] args) throws Exception {
-        int delExtremValueTimes = 2;
-        int updatetimes = 30;
+        int delExtremValueTimes = 5;
+//        int updatetimes = 30;
         int batchupdatetimes = 50;
-        int objectnums = 2000;
+        int objectnums = 10000;
         int rangePredicate = 20000;
         int Wnums = 12;
-        int[] maxfilesArray = {1 << 20,1 << 18,1 << 16,1 << 14,1 << 12};
-        int[] hilbertOrders = {17,16,10,9};
+        int[] maxfilesArray = {1 << 12};//20,1 << 18,1 << 16,1 << 14,1 << 12
+        int[] hilbertOrders = {12};
 
         Random random = new Random(); // 用于随机选择对象
         // 初始化200个Object集合，每个包含pSet, W, files

@@ -1,7 +1,7 @@
 package org.davidmoten.Scheme.SPQS;
 
 
-import org.davidmoten.B.B;
+import org.davidmoten.BitMp.B;
 import org.davidmoten.BPC.BPCGenerator;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 
