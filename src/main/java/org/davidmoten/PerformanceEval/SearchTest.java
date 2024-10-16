@@ -26,7 +26,7 @@ public class SearchTest {
         // 初始化200个Object集合，每个包含pSet, W, files
         Object[] predefinedObjects = new Object[objectnum];
         for (int i = 0; i < objectnum; i++) {
-            long[] pSet = {i, i + 1}; // pSet
+            long[] pSet = {random.nextInt(objectnum), random.nextInt(objectnum)}; // pSet
             String[] W = new String[Wnums]; // 创建W数组
             for (int j = 0; j < Wnums; j++) {
                 W[j] = "keyword" + (i + j + 1); // 动态生成关键词
@@ -44,12 +44,13 @@ public class SearchTest {
         int batchSize = 100; // 每次处理100个更新
 
         // 执行更新操作
+        ArrayList<Object[]> updateItems = new ArrayList<>();
         for (int i = 0; i < updatetime; i++) {
             Object[] selectedObject = (Object[]) predefinedObjects[random.nextInt(objectnum)];
+            updateItems.add(selectedObject);
             long[] pSet = (long[]) selectedObject[0];
             String[] W = (String[]) selectedObject[1];
             int[] files = (int[]) selectedObject[2];
-
             // 进行更新操作
             spqs.ObjectUpdate(pSet, W, "add", files, rangePredicate);
             tdsc2023.update(pSet, W, "add", files, rangePredicate);
@@ -75,18 +76,22 @@ public class SearchTest {
             System.out.print("请输入 l 的值 (控制 Hilbert 范围): ");
             l = scanner.nextInt();
 
-            // 执行搜索操作
             for (int i = 0; i < searchtimes; i++) {
-                int randomValue = random.nextInt(objectnum);
-                long[] pSetQ = {randomValue, randomValue + 1}; // pSet
+                // 从 predefinedObjects 中随机选择一个对象
+                Object[] selectedObject = (Object[]) predefinedObjects[random.nextInt(objectnum)];
+//                Object[] selectedObject = updateItems.get(random.nextInt(updateItems.size()));
 
-                String[] WQ = new String[Wnums]; // 创建W数组
-                for (int j = 0; j < Wnums; j++) {
-                    WQ[j] = "keyword" + (randomValue + j + 1); // 动态生成关键词
-                }
+                long[] pSetQ = (long[]) selectedObject[0];  // 获取 pSet
+                String[] WQ = (String[]) selectedObject[1]; // 获取 W 数组
+
+                // 获取该对象的 Hilbert 索引
                 BigInteger pointHilbertIndex = spqs.hilbertCurve.index(pSetQ);
+
+                // 设置搜索范围 R_min 和 R_max
                 BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(l));
                 BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(l));
+
+                // 执行搜索操作
                 spqs.ObjectSearch(R_min, R_max, WQ);
                 tdsc2023.Search(R_min, R_max, WQ);
 
@@ -103,13 +108,13 @@ public class SearchTest {
                 tdscSearchTimes.add(tdscAvgSearchTime);
 
                 // 打印每次搜索的结果
-                System.out.printf("SPQS: |%-10.6f|ms Client: |%-10.6f|ms SPQS Server: |%-10.6f|ms | TDSC2023: |%-10.6f|ms Client: |%-10.6f|ms TDSC2023 Server: |%-10.6f|ms\n",
-                        spqsAvgSearchTime, spqsAvgClientSearchTime, spqsAvgServerSearchTime,
-                        tdscAvgSearchTime, tdscAvgClientSearchTime, tdscAvgServerSearchTime);
+//                System.out.printf("SPQS: |%-10.6f|ms Client: |%-10.6f|ms SPQS Server: |%-10.6f|ms | TDSC2023: |%-10.6f|ms Client: |%-10.6f|ms TDSC2023 Server: |%-10.6f|ms\n",
+//                        spqsAvgSearchTime, spqsAvgClientSearchTime, spqsAvgServerSearchTime,
+//                        tdscAvgSearchTime, tdscAvgClientSearchTime, tdscAvgServerSearchTime);
             }
 
             // 打印平均搜索时间
-            System.out.printf("avg:| SPQS: %-10.6fms | TDSC2023: %-10.6fms\n",
+            System.out.printf("avg:| SPQS: |%-10.6f|ms | TDSC2023: |%-10.6f|ms\n",
                     spqsSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0),
                     tdscSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0));
 

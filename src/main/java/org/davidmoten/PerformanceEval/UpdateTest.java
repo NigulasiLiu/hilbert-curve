@@ -22,7 +22,7 @@ public class UpdateTest {
         // 初始化200个Object集合，每个包含pSet, W, files
         Object[] predefinedObjects = new Object[objectnums];
         for (int i = 0; i < objectnums; i++) {
-            long[] pSet = {i, i + 1}; // pSet
+            long[] pSet = {random.nextInt(objectnums), random.nextInt(objectnums)}; // pSet
             String[] W = new String[Wnums]; // 创建W数组
             for (int j = 0; j < Wnums; j++) {
                 W[j] = "keyword" + (i + j + 1); // 动态生成关键词

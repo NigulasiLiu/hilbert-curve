@@ -336,6 +336,12 @@ public class TDSC2023_Biginteger {
             SumWList.add(SumWe);
         }
         if(!exist){
+            long client_time_notexist = System.nanoTime();
+            // 存储到列表中
+            double msclient_time = (client_time_notexist - startTime) / 1_000_000.0;
+            double msserver_time = 0 / 1_000_000.0;
+            clientSearchTimes.add(msclient_time);
+            serverSearchTimes.add(msserver_time);
             return BigInteger.ZERO;
         }
         //客户端解密阶段
@@ -375,14 +381,14 @@ public class TDSC2023_Biginteger {
 //        findIndexesOfOne(BR);
         long client_time4 = System.nanoTime();
         // 输出总耗时
-        double totalLoopTimeMs = (System.nanoTime() - startTime) / 1_000_000.0;
+//        double totalLoopTimeMs = (System.nanoTime() - startTime) / 1_000_000.0;
 //        System.out.println("TDSC2023_Biginteger Total search time: " + totalLoopTimeMs + " ms).");
         // 客户端部分结束计时
-        long server_time2 = System.nanoTime();
+//        long server_time2 = System.nanoTime();
         // 输出客户端和服务器端的时间消耗
         double msclient_time = ((client_time2 - startTime) + (client_time4 - client_time3)) / 1_000_000.0;
         double msserver_time = (client_time3 - client_time2) / 1_000_000.0;
-        double total_time = msclient_time + msserver_time;
+//        double total_time = msclient_time + msserver_time;
 //        System.out.println("TDSC: Client time part 1: " + msclient_time1 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
 
         // 存储到列表中
