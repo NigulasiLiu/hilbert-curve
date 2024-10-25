@@ -887,7 +887,7 @@ public class SPQS_Biginteger {
         System.out.println("平均客户端搜索时间: " + spqs.getAverageClientTime() + " ms");
         System.out.println("平均服务器搜索时间: " + spqs.getAverageServerTime() + " ms");
 
-//        spqs.printTimes();
+        spqs.printTimes();
     }
 
 }

@@ -10,11 +10,10 @@ import java.util.Random;
 import java.util.Scanner;
 
 public class SearchTest {
-
     public static void main(String[] args) throws Exception {
         int delupdatetimes = 3;
         int searchtimes;
-        int updatetime = 800;
+        int updatetime = 1000;
         int objectnum = 1000000;
         int rangePredicate = 100000;
         int Wnums = 6;
