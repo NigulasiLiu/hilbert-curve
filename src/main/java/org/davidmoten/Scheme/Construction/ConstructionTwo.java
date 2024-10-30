@@ -1,15 +1,11 @@
 package org.davidmoten.Scheme.Construction;
-
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import java.math.BigInteger;
-import java.util.Base64;
 import java.util.*;
-import java.util.stream.Collectors;
-
-// ConstructionOne类，将所有之前的方法合并到此类中
-public class ConstructionOne {
+// ConstructionTwo类
+public class ConstructionTwo {
 
     private Map<String, String> Ux, Uy;
     private Random prf; // 伪随机函数 (PRF)
@@ -46,7 +42,7 @@ public class ConstructionOne {
     public Node[] BTy;
 
     // 构造函数
-    public ConstructionOne(int lambda, int t, int N, int[] xCoordinates, int[] yCoordinates) {
+    public ConstructionTwo(int lambda, int t, int N, int[] xCoordinates, int[] yCoordinates) {
         Ux = new HashMap<>();
         Uy = new HashMap<>();
         prf = new Random();  // 模拟PRF伪随机函数
@@ -474,7 +470,6 @@ public class ConstructionOne {
         return andStrings(Sx_result, Sy_result);  // 返回最终搜索结果
     }
 
-
     // Server Search：服务器根据搜索令牌 (TAGX, TAGY) 返回加密结果
     private List<List<String>> serverSearch(List<String> TAGX, List<String> TAGY) {
         List<String> ER_X = new ArrayList<>();
@@ -513,13 +508,10 @@ public class ConstructionOne {
         int[] yCoordinates = this.yCoordinates;
         // 输出 LUx
         List<String> LUx = new ArrayList<>();
-        // 构建树
-//        Node[] BTx_temp = isX?BTx:BTy;
+
         // 查找需要更新的叶子节点
         List<Node> LNx = new ArrayList<>(); // Find leaf nodes
 
-        //find nodes to be updated
-        List<Integer> nodesToUpdate = new ArrayList<>();
         // 判断 Pi 是否存在于 xCoordinates 和 yCoordinates 中
         boolean isInX = false;
         boolean isInY = false;
@@ -561,43 +553,14 @@ public class ConstructionOne {
             Sux_builder.setCharAt(indexToReplace, '1');
             String Sux = Sux_builder.toString();
             for (Node nAlpha : LNx) {
-                // 使用 orStrings 更新位串
-                //System.out.println("Before XOR - nAlpha.label: " + nAlpha.label + ", Sux: " + Sux);
-                nAlpha.label = xorStrings(Sux, nAlpha.label);
-                //System.out.println("After XOR - nAlpha.label: " + nAlpha.label);
-
-                // 生成标签
-                String TAGXAlpha = generatePRF(Kx, nAlpha.index);
-                //System.out.println("Generated TAGXAlpha: " + TAGXAlpha + ", for nAlpha.index: " + nAlpha.index);
-
                 // 生成加密密钥并加密
                 String KAlpha = generatePRF(Ks, nAlpha.index);
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
-
                 // 进行加密
-                String eU = encrypt(KAlpha, BigInteger.valueOf(Integer.parseInt(BTx[nAlpha.index].label)), C, "homomorphic");
+                String eU = encrypt(KAlpha, new BigInteger(Sux), C, "homomorphic");
                 //System.out.println("BTx[" + nAlpha.index + "].label: " + BTx[nAlpha.index].label + ", eUx: " + eU + ", C: " + C);
-
                 // 将更新的标签和密文存入 LUx
-                LUx.add(TAGXAlpha + "," + eU);
-                // 更新父节点
-                int beta = nAlpha.index;
-                while (beta != 0) {
-                    // 判断节点是左子还是右子
-                    if (beta % 2 == 0) {
-                        beta = beta / 2 - 1;  // 左子节点
-                        BTx[beta].label = orStrings(BTx[nAlpha.index].label, BTx[nAlpha.index - 1].label);
-                    } else {
-                        beta = (beta - 1) / 2;  // 右子节点
-                        BTx[beta].label = orStrings(BTx[nAlpha.index].label, BTx[nAlpha.index + 1].label);
-                    }
-                    // 更新父节点
-                    String TAGXBeta = generatePRF(Kx, beta);
-                    String KBeta = generatePRF(Ks, beta);
-                    String eUBeta = encrypt(KBeta, BigInteger.valueOf(Integer.parseInt(BTx[beta].label)), C, "homomorphic");
-                    // 添加到 LUx
-                    LUx.add(TAGXBeta + "," + eUBeta);
-                }
+                LUx.add(nAlpha.index + "," + eU);
             }
         } else {
             // 找到 Pi[1] 和 P_prime[1] 对应的叶子节点
@@ -609,42 +572,14 @@ public class ConstructionOne {
             Sux_builder.setCharAt(indexToReplace, '1');
             String Sux = Sux_builder.toString();
             for (Node nAlpha : LNx) {
-                // 使用 orStrings 更新位串
-                //System.out.println("Before XOR - nAlpha.label: " + nAlpha.label + ", Sux: " + Sux);
-                nAlpha.label = xorStrings(Sux, nAlpha.label);
-                //System.out.println("After XOR - nAlpha.label: " + nAlpha.label);
-
-                // 生成标签
-                String TAGXAlpha = generatePRF(Ky, nAlpha.index);
-                //System.out.println("Generated TAGXAlpha: " + TAGXAlpha + ", for nAlpha.index: " + nAlpha.index);
-
                 // 生成加密密钥并加密
                 String KAlpha = generatePRF(Ks, nAlpha.index);
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
-
                 // 进行加密
-                String eU = encrypt(KAlpha, BigInteger.valueOf(Integer.parseInt(BTy[nAlpha.index].label)), C_prime, "homomorphic");
-                //System.out.println("BTy[" + nAlpha.index + "].label: " + BTy[nAlpha.index].label + ", eUy: " + eU + ", C_prime: " + C_prime);
+                String eU = encrypt(KAlpha, new BigInteger(Sux), C, "homomorphic");
+                //System.out.println("BTx[" + nAlpha.index + "].label: " + BTx[nAlpha.index].label + ", eUx: " + eU + ", C: " + C);
                 // 将更新的标签和密文存入 LUx
-                LUx.add(TAGXAlpha + "," + eU);
-                // 更新父节点
-                int beta = nAlpha.index;
-                while (beta != 0) {
-                    // 判断节点是左子还是右子
-                    if (beta % 2 == 0) {
-                        beta = (beta - 1) / 2;  // 左子节点
-                        BTy[beta].label = orStrings(BTy[nAlpha.index].label, BTy[nAlpha.index - 1].label);
-                    } else {
-                        beta = (beta - 1) / 2;  // 右子节点
-                        BTy[beta].label = orStrings(BTy[nAlpha.index].label, BTy[nAlpha.index + 1].label);
-                    }
-                    // 更新父节点
-                    String TAGXBeta = generatePRF(Kx, beta);
-                    String KBeta = generatePRF(Ks, beta);
-                    String eUBeta = encrypt(KBeta, BigInteger.valueOf(Integer.parseInt(BTy[beta].label)), C_prime, "homomorphic");
-                    // 添加到 LUx
-                    LUx.add(TAGXBeta + "," + eUBeta);
-                }
+                LUx.add(nAlpha.index + "," + eU);
             }
             this.xCoordinates = newXCoordinates;
             this.yCoordinates = newYCoordinates;
@@ -681,136 +616,42 @@ public class ConstructionOne {
         // 更新 Ux
         for (String update : LUx) {
             String[] parts = update.split(",");
-            String tag = parts[0];  // TAGX
-            String eU = parts[1];  // 加密后的新值
-
-            if (Ux.containsKey(tag)) {
-                //System.out.println("替换 Ux 中的键: " + tag + " 值:" + eU);
-            } else {
-                //System.out.println("添加到 Ux: " + tag);
-            }
-            Ux.put(tag, eU);  // 更新或添加到 Ux
+            int nodeIndex = Integer.parseInt(parts[0]);  // TAGX
+            String eU = parts[1];  // 旧的加密值
+            String eAlpha_tag = generatePRF(Kx, nodeIndex);
+            String eAlpha = Ux.get(eAlpha_tag);
+            String new_eAlpha = xorStrings(eAlpha,eU);
+            Ux.put(eAlpha_tag, new_eAlpha);  // 更新或添加到 Ux
         }
-
+        for(int nodeindex=(int) Math.pow(2, t)-1;nodeindex>=0;nodeindex--) {
+            String e2Alphaplus1_tag = generatePRF(Kx, 2*nodeindex+1);
+            String e2Alphaplus2_tag = generatePRF(Kx, 2*nodeindex+2);
+            String e2Alphaplus1 = Ux.get(e2Alphaplus1_tag);
+            String e2Alphaplus2 = Ux.get(e2Alphaplus2_tag);
+            String new_eAlpha = xorStrings(e2Alphaplus1,e2Alphaplus2);
+            Ux.put(generatePRF(Kx, nodeindex), new_eAlpha);  // 更新或添加到 Ux
+        }
         // 更新 Uy
         for (String update : LUy) {
             String[] parts = update.split(",");
-            String tag = parts[0];  // TAGY
-            String eU = parts[1];  // 加密后的新值
-
-            if (Uy.containsKey(tag)) {
-                //System.out.println("替换 Uy 中的键: " + tag + " 值:" + eU);
-            } else {
-                //System.out.println("添加到 Uy: " + tag);
-            }
-            Uy.put(tag, eU);  // 更新或添加到 Uy
+            int nodeIndex = Integer.parseInt(parts[0]);  // TAGY
+            String eU = parts[1];  // 旧的加密值
+            String eAlpha_tag = generatePRF(Ky, nodeIndex);
+            String eAlpha = Uy.get(eAlpha_tag);
+            String new_eAlpha = xorStrings(eAlpha,eU);
+            Uy.put(eAlpha_tag, new_eAlpha);  // 更新或添加到 Uy
         }
-
+        for(int nodeindex=(int) Math.pow(2, t)-1;nodeindex>=0;nodeindex--) {
+            String e2Alphaplus1_tag = generatePRF(Ky, 2*nodeindex+1);
+            String e2Alphaplus2_tag = generatePRF(Ky, 2*nodeindex+2);
+            String e2Alphaplus1 = Uy.get(e2Alphaplus1_tag);
+            String e2Alphaplus2 = Uy.get(e2Alphaplus2_tag);
+            String new_eAlpha = xorStrings(e2Alphaplus1,e2Alphaplus2);
+            Uy.put(generatePRF(Ky, nodeindex), new_eAlpha);  // 更新或添加到 Uy
+        }
     }
 
     public static void main(String[] args) throws Exception {
-//        // 参数设置
-//        int lambda = 128;  // 安全参数
-//        int t = 3;  // 树的高度 - 例如有8个叶子节点（2^3 = 8）
-//        int[] xCoordinates = {1, 1, 6, 4, 7, 4, 2, 5};  // x轴的坐标
-//        int[] yCoordinates = {1, 3, 2, 4, 4, 5, 7, 7};  // y轴的坐标
-//        int N = 8;  // 数据点数量
-//
-//        // 1. 实例化ConstructionOne类
-//        double startTime = System.nanoTime();
-//        ConstructionOne construction = new ConstructionOne(lambda, t, N, xCoordinates, yCoordinates);
-//        double endTime = System.nanoTime();
-//        System.out.printf("实例化 ConstructionOne 类时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 2. 生成二叉树节点数组
-//        startTime = System.nanoTime();
-//        construction.BTx = construction.buildBinaryTree(t);
-//        construction.BTy = construction.buildBinaryTree(t);
-//        endTime = System.nanoTime();
-//        System.out.printf("生成二叉树节点数组时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 3. 生成倒排索引
-//        startTime = System.nanoTime();
-//        List<String> invertedIndex = construction.buildInvertedIndex(t, N, xCoordinates);
-//        List<String> invertedIndey = construction.buildInvertedIndex(t, N, yCoordinates);
-//        endTime = System.nanoTime();
-//        System.out.printf("生成倒排索引时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 4. 构建节点倒排索引
-//        startTime = System.nanoTime();
-//        Map<Integer, String> Sx = construction.buildxNodeInvertedIndex(invertedIndex, t);  // X轴节点倒排索引
-//        Map<Integer, String> Sy = construction.buildyNodeInvertedIndex(invertedIndey, t); // Y轴节点倒排索引
-//        endTime = System.nanoTime();
-//        System.out.printf("构建节点倒排索引时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 5. 设置加密数据集 (EDS)
-//        startTime = System.nanoTime();
-//        construction.setupEDS(Sx, Sy);
-//        endTime = System.nanoTime();
-//        System.out.printf("设置加密数据集时间 (setupEDS): %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 6. 转换查询范围
-//        startTime = System.nanoTime();
-//        int[] rangex = construction.rangeConvert(t, new int[]{2, 6});
-//        int[] rangey = construction.rangeConvert(t, new int[]{3, 6});
-//        endTime = System.nanoTime();
-//        System.out.printf("转换查询范围时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 7. 查找最小覆盖节点
-//        startTime = System.nanoTime();
-//        List<Node> xnodesCovered = construction.findMinimumCover(rangex, true);
-//        List<Node> ynodesCovered = construction.findMinimumCover(rangey, false);
-//        endTime = System.nanoTime();
-//        System.out.printf("查找最小覆盖节点时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 打印二叉树
-//        startTime = System.nanoTime();
-//        for (Node node : construction.BTx) {
-//            //System.out.println("Index: " + node.index + ", xLabel: " + node.label);
-//        }
-//        for (Node node : construction.BTy) {
-//            //System.out.println("Index: " + node.index + ", yLabel: " + node.label);
-//        }
-//        endTime = System.nanoTime();
-//        System.out.printf("打印二叉树时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 8. 调用clientSearch进行搜索
-//        startTime = System.nanoTime();
-//        String searchResult = construction.clientSearch(rangex, rangey, t);
-//        endTime = System.nanoTime();
-//        System.out.printf("ClientSearch 时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 9. 打印搜索结果
-//        startTime = System.nanoTime();
-//        construction.printBinaryWithIndexes(searchResult);
-//        construction.printU();
-//        endTime = System.nanoTime();
-//        System.out.printf("打印搜索结果时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 10. 更新数据并再次进行搜索
-//        int[] Pi = new int[]{1, 3};
-//        int[] Pi_prime = new int[]{2, 6};
-//
-//        startTime = System.nanoTime();
-//        Map<String, List<String>> updates = construction.clientUpdate(Pi, Pi_prime);
-//        endTime = System.nanoTime();
-//        System.out.printf("ClientUpdate 时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        startTime = System.nanoTime();
-//        construction.serverUpdate(updates);
-//        endTime = System.nanoTime();
-//        System.out.printf("ServerUpdate 时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        // 11. 再次进行搜索
-//        startTime = System.nanoTime();
-//        String searchResult1 = construction.clientSearch(rangex, rangey, t);
-//        endTime = System.nanoTime();
-//        System.out.printf("第二次 ClientSearch 时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//
-//        startTime = System.nanoTime();
-//        construction.printBinaryWithIndexes(searchResult1);
-//        endTime = System.nanoTime();
-//        System.out.printf("第二次打印搜索结果时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
         experiment_setup_cost();
         experiment_search_complexity_dimension();
         experiment_search_complexity_data_points();
@@ -830,7 +671,7 @@ public class ConstructionOne {
         long startTime = System.nanoTime();
 
         // 初始化构建
-        ConstructionOne construction = new ConstructionOne(lambda, t, N, xCoordinates, yCoordinates);
+        ConstructionTwo construction = new ConstructionTwo(lambda, t, N, xCoordinates, yCoordinates);
 
         // 生成二叉树节点数组
         construction.BTx = construction.buildBinaryTree(t);
@@ -859,7 +700,7 @@ public class ConstructionOne {
             int[] xCoordinates = generateRandomCoordinates(N, t);
             int[] yCoordinates = generateRandomCoordinates(N, t);
 
-            ConstructionOne construction = new ConstructionOne(lambda, t, N, xCoordinates, yCoordinates);
+            ConstructionTwo construction = new ConstructionTwo(lambda, t, N, xCoordinates, yCoordinates);
 
             // 初始化二叉树和倒排索引
             construction.BTx = construction.buildBinaryTree(t);
@@ -892,7 +733,7 @@ public class ConstructionOne {
             int[] xCoordinates = generateRandomCoordinates(N, t);
             int[] yCoordinates = generateRandomCoordinates(N, t);
 
-            ConstructionOne construction = new ConstructionOne(lambda, t, N, xCoordinates, yCoordinates);
+            ConstructionTwo construction = new ConstructionTwo(lambda, t, N, xCoordinates, yCoordinates);
 
             // 初始化二叉树和倒排索引
             construction.BTx = construction.buildBinaryTree(t);
@@ -923,11 +764,11 @@ public class ConstructionOne {
         int[] Pi = {1, 3};
         int[] Pi_prime = {2, 6};
 
-        for (int t = 7; t <= 7; t++) {
+        for (int t = 7; t <= 15; t++) {
             int[] xCoordinates = generateRandomCoordinates(N, t);
             int[] yCoordinates = generateRandomCoordinates(N, t);
 
-            ConstructionOne construction = new ConstructionOne(lambda, t, N, xCoordinates, yCoordinates);
+            ConstructionTwo construction = new ConstructionTwo(lambda, t, N, xCoordinates, yCoordinates);
 
             // 初始化二叉树和倒排索引
             construction.BTx = construction.buildBinaryTree(t);
@@ -958,7 +799,7 @@ public class ConstructionOne {
             int[] xCoordinates = generateRandomCoordinates(N, t);
             int[] yCoordinates = generateRandomCoordinates(N, t);
 
-            ConstructionOne construction = new ConstructionOne(lambda, t, N, xCoordinates, yCoordinates);
+            ConstructionTwo construction = new ConstructionTwo(lambda, t, N, xCoordinates, yCoordinates);
 
             // 初始化二叉树和倒排索引
             construction.BTx = construction.buildBinaryTree(t);
