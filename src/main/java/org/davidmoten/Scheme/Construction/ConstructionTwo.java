@@ -470,38 +470,6 @@ public class ConstructionTwo {
         return andStrings(Sx_result, Sy_result);  // 返回最终搜索结果
     }
 
-    // Server Search：服务器根据搜索令牌 (TAGX, TAGY) 返回加密结果
-    private List<List<String>> serverSearch(List<String> TAGX, List<String> TAGY) {
-        List<String> ER_X = new ArrayList<>();
-        List<String> ER_Y = new ArrayList<>();
-
-        // 搜索 X 轴的加密数据 (ei)
-        for (String tagX : TAGX) {
-            String ei = Ux.get(tagX);
-            if (ei != null) {
-                ER_X.add(ei);
-            } else {
-                //System.out.println("TAGX (X-axis search token)不存在:");
-            }
-        }
-
-        // 搜索 Y 轴的加密数据 (ei_prime)
-        for (String tagY : TAGY) {
-            String ei_prime = Uy.get(tagY);
-            if (ei_prime != null) {
-                ER_Y.add(ei_prime);
-            } else {
-                //System.out.println("TAGY (Y-axis search token)不存在:");
-            }
-        }
-
-        List<List<String>> ER = new ArrayList<>();
-        ER.add(ER_X);  // X 轴结果
-        ER.add(ER_Y);  // Y 轴结果
-
-        return ER;  // 返回加密结果集，分别为 ei 和 ei_prime
-    }
-
     // Update-x 方法实现
     public List<String> updateX(int[] Pi, int[] Pi_prime, boolean isX) throws Exception {
         int[] xCoordinates = this.xCoordinates;
@@ -542,7 +510,7 @@ public class ConstructionTwo {
 //        //System.out.println("New yCoordinates: " + Arrays.toString(newYCoordinates));
 
         // 初始化 Sux 为全零串
-        StringBuilder Sux_builder = new StringBuilder("0".repeat((int) Math.pow(2, t)));
+        StringBuilder Sux_builder = new StringBuilder("0".repeat(N));
         if (isX) {
             // 找到 Pi[0] 和 P_prime[0] 对应的叶子节点
             int leafStartIndex = (int) Math.pow(2, t) - 1;
@@ -587,31 +555,68 @@ public class ConstructionTwo {
         return LUx;  // 返回 LUx
     }
 
-    // Client Update 方法
-    public Map<String, List<String>> clientUpdate(int[] Pi, int[] Pi_prime) throws Exception {
-        Map<String, List<String>> updates = new HashMap<>();
+    // Server Search：服务器根据搜索令牌 (TAGX, TAGY) 返回加密结果
+    private List<List<String>> serverSearch(List<String> TAGX, List<String> TAGY) {
+        List<String> ER_X = new ArrayList<>();
+        List<String> ER_Y = new ArrayList<>();
 
-        // 更新 X 维度
+        // 搜索 X 轴的加密数据 (ei)
+        for (String tagX : TAGX) {
+            String ei = Ux.get(tagX);
+            if (ei != null) {
+                ER_X.add(ei);
+            } else {
+                //System.out.println("TAGX (X-axis search token)不存在:");
+            }
+        }
+
+        // 搜索 Y 轴的加密数据 (ei_prime)
+        for (String tagY : TAGY) {
+            String ei_prime = Uy.get(tagY);
+            if (ei_prime != null) {
+                ER_Y.add(ei_prime);
+            } else {
+                //System.out.println("TAGY (Y-axis search token)不存在:");
+            }
+        }
+
+        List<List<String>> ER = new ArrayList<>();
+        ER.add(ER_X);  // X 轴结果
+        ER.add(ER_Y);  // Y 轴结果
+
+        return ER;  // 返回加密结果集，分别为 ei 和 ei_prime
+    }
+
+    // Client Update 方法
+    public List<List<String>> clientUpdate(int[] Pi, int[] Pi_prime) throws Exception {
+        List<List<String>> updates = new ArrayList<>();
+
+        // 更新X维度
         if (Pi[0] != Pi_prime[0]) {
             C += 1;
             List<String> LUx = updateX(Pi, Pi_prime, true);
-            updates.put("LUx", LUx);
+            updates.add(LUx);  // 将LUx添加到更新列表
+        } else {
+            updates.add(new ArrayList<>());  // 空列表作为占位符
         }
 
-        // 更新 Y 维度
+        // 更新Y维度
         if (Pi[1] != Pi_prime[1]) {
             C_prime += 1;
             List<String> LUy = updateX(Pi, Pi_prime, false);  // Y 更新与 X 类似，使用 Ky 密钥
-            updates.put("LUy", LUy);
+            updates.add(LUy);  // 将LUy添加到更新列表
+        } else {
+            updates.add(new ArrayList<>());  // 空列表作为占位符
         }
 
         return updates;  // 返回 LUx 和 LUy
     }
 
     // Server Update 方法
-    public void serverUpdate(Map<String, List<String>> updates) {
-        List<String> LUx = updates.get("LUx");
-        List<String> LUy = updates.get("LUy");
+    public void serverUpdate(List<List<String>> updates) {
+        // 从列表中获取LUx和LUy
+        List<String> LUx = updates.get(0);  // 第一个列表是LUx
+        List<String> LUy = updates.get(1);  // 第二个列表是LUy
 
         // 更新 Ux
         for (String update : LUx) {
@@ -782,7 +787,7 @@ public class ConstructionTwo {
 
             // 测量更新时间
             long startTime = System.nanoTime();
-            Map<String, List<String>> updates = construction.clientUpdate(Pi, Pi_prime);
+            List<List<String>> updates = construction.clientUpdate(Pi, Pi_prime);
             construction.serverUpdate(updates);
             long endTime = System.nanoTime();
 
@@ -817,7 +822,7 @@ public class ConstructionTwo {
                 int[] Pi_prime = generateRandomCoordinatePair(t);
 
                 long startTime = System.nanoTime();
-                Map<String, List<String>> updates = construction.clientUpdate(Pi, Pi_prime);
+                List<List<String>> updates = construction.clientUpdate(Pi, Pi_prime);
                 construction.serverUpdate(updates);
                 long endTime = System.nanoTime();
 

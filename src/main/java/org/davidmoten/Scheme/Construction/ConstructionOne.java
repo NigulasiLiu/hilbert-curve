@@ -550,7 +550,7 @@ public class ConstructionOne {
 //        //System.out.println("New yCoordinates: " + Arrays.toString(newYCoordinates));
 
         // 初始化 Sux 为全零串
-        StringBuilder Sux_builder = new StringBuilder("0".repeat((int) Math.pow(2, t)));
+        StringBuilder Sux_builder = new StringBuilder("0".repeat(N));
         if (isX) {
             // 找到 Pi[0] 和 P_prime[0] 对应的叶子节点
             int leafStartIndex = (int) Math.pow(2, t) - 1;
@@ -575,7 +575,7 @@ public class ConstructionOne {
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 进行加密
-                String eU = encrypt(KAlpha, BigInteger.valueOf(Integer.parseInt(BTx[nAlpha.index].label)), C, "homomorphic");
+                String eU = encrypt(KAlpha, new BigInteger(BTx[nAlpha.index].label), C, "homomorphic");
                 //System.out.println("BTx[" + nAlpha.index + "].label: " + BTx[nAlpha.index].label + ", eUx: " + eU + ", C: " + C);
 
                 // 将更新的标签和密文存入 LUx
@@ -594,7 +594,7 @@ public class ConstructionOne {
                     // 更新父节点
                     String TAGXBeta = generatePRF(Kx, beta);
                     String KBeta = generatePRF(Ks, beta);
-                    String eUBeta = encrypt(KBeta, BigInteger.valueOf(Integer.parseInt(BTx[beta].label)), C, "homomorphic");
+                    String eUBeta = encrypt(KBeta, new BigInteger(BTx[beta].label), C, "homomorphic");
                     // 添加到 LUx
                     LUx.add(TAGXBeta + "," + eUBeta);
                 }
@@ -623,7 +623,7 @@ public class ConstructionOne {
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 进行加密
-                String eU = encrypt(KAlpha, BigInteger.valueOf(Integer.parseInt(BTy[nAlpha.index].label)), C_prime, "homomorphic");
+                String eU = encrypt(KAlpha, new BigInteger(BTy[nAlpha.index].label), C_prime, "homomorphic");
                 //System.out.println("BTy[" + nAlpha.index + "].label: " + BTy[nAlpha.index].label + ", eUy: " + eU + ", C_prime: " + C_prime);
                 // 将更新的标签和密文存入 LUx
                 LUx.add(TAGXAlpha + "," + eU);
@@ -641,7 +641,7 @@ public class ConstructionOne {
                     // 更新父节点
                     String TAGXBeta = generatePRF(Kx, beta);
                     String KBeta = generatePRF(Ks, beta);
-                    String eUBeta = encrypt(KBeta, BigInteger.valueOf(Integer.parseInt(BTy[beta].label)), C_prime, "homomorphic");
+                    String eUBeta = encrypt(KBeta, new BigInteger(BTy[beta].label), C_prime, "homomorphic");
                     // 添加到 LUx
                     LUx.add(TAGXBeta + "," + eUBeta);
                 }
@@ -653,30 +653,35 @@ public class ConstructionOne {
     }
 
     // Client Update 方法
-    public Map<String, List<String>> clientUpdate(int[] Pi, int[] Pi_prime) throws Exception {
-        Map<String, List<String>> updates = new HashMap<>();
+    public List<List<String>> clientUpdate(int[] Pi, int[] Pi_prime) throws Exception {
+        List<List<String>> updates = new ArrayList<>();
 
-        // 更新 X 维度
+        // 更新X维度
         if (Pi[0] != Pi_prime[0]) {
             C += 1;
             List<String> LUx = updateX(Pi, Pi_prime, true);
-            updates.put("LUx", LUx);
+            updates.add(LUx);  // 将LUx添加到更新列表
+        } else {
+            updates.add(new ArrayList<>());  // 空列表作为占位符
         }
 
-        // 更新 Y 维度
+        // 更新Y维度
         if (Pi[1] != Pi_prime[1]) {
             C_prime += 1;
             List<String> LUy = updateX(Pi, Pi_prime, false);  // Y 更新与 X 类似，使用 Ky 密钥
-            updates.put("LUy", LUy);
+            updates.add(LUy);  // 将LUy添加到更新列表
+        } else {
+            updates.add(new ArrayList<>());  // 空列表作为占位符
         }
 
         return updates;  // 返回 LUx 和 LUy
     }
 
     // Server Update 方法
-    public void serverUpdate(Map<String, List<String>> updates) {
-        List<String> LUx = updates.get("LUx");
-        List<String> LUy = updates.get("LUy");
+    public void serverUpdate(List<List<String>> updates) {
+        // 从列表中获取LUx和LUy
+        List<String> LUx = updates.get(0);  // 第一个列表是LUx
+        List<String> LUy = updates.get(1);  // 第二个列表是LUy
 
         // 更新 Ux
         for (String update : LUx) {
@@ -705,8 +710,8 @@ public class ConstructionOne {
             }
             Uy.put(tag, eU);  // 更新或添加到 Uy
         }
-
     }
+
 
     public static void main(String[] args) throws Exception {
 //        // 参数设置
@@ -811,9 +816,9 @@ public class ConstructionOne {
 //        construction.printBinaryWithIndexes(searchResult1);
 //        endTime = System.nanoTime();
 //        System.out.printf("第二次打印搜索结果时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-        experiment_setup_cost();
-        experiment_search_complexity_dimension();
-        experiment_search_complexity_data_points();
+//        experiment_setup_cost();
+//        experiment_search_complexity_dimension();
+//        experiment_search_complexity_data_points();
         experiment_update_complexity_dimension();
         experiment_update_complexity_update_points();
     }
@@ -941,7 +946,7 @@ public class ConstructionOne {
 
             // 测量更新时间
             long startTime = System.nanoTime();
-            Map<String, List<String>> updates = construction.clientUpdate(Pi, Pi_prime);
+            List<List<String>> updates = construction.clientUpdate(Pi, Pi_prime);
             construction.serverUpdate(updates);
             long endTime = System.nanoTime();
 
@@ -976,7 +981,7 @@ public class ConstructionOne {
                 int[] Pi_prime = generateRandomCoordinatePair(t);
 
                 long startTime = System.nanoTime();
-                Map<String, List<String>> updates = construction.clientUpdate(Pi, Pi_prime);
+                List<List<String>> updates = construction.clientUpdate(Pi, Pi_prime);
                 construction.serverUpdate(updates);
                 long endTime = System.nanoTime();
 
