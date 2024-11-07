@@ -159,7 +159,24 @@ public class TDSC2023_Biginteger {
 //        System.out.println("BPC2:" + BinaryResults);
         return BinaryResults;
     }
-
+    public List<String> preCover(BigInteger[][] Matrix) {
+        //生成min到max的所有Bigint
+        BigInteger[] R = new BigInteger[Matrix.length*Matrix[0].length];
+        for(int i = 0; i < Matrix.length; i++) {
+            for(int j = 0; j < Matrix[0].length; j++) {
+                R[i * Matrix[0].length + j] = Matrix[i][j];
+            }
+        }
+        List<BigInteger> results = this.bpcGenerator.GetBPCValueList(R);
+        List<String> BinaryResults = new ArrayList<>();
+//        System.out.println("BPC1: " + results);
+        for (BigInteger result : results) {
+            String bpc_string = this.bpcGenerator.toBinaryStringWithStars(result, order * 2, this.bpcGenerator.shiftCounts.get(result));
+            BinaryResults.add(bpc_string);
+        }
+//        System.out.println("BPC2:" + BinaryResults);
+        return BinaryResults;
+    }
     private int getCounter(String input) {
         return T.getOrDefault(input, -1);
     }
@@ -396,7 +413,157 @@ public class TDSC2023_Biginteger {
         serverSearchTimes.add(msserver_time);
         return BR;
     }
+    public BigInteger Search(BigInteger[][] Matrix, String[] WQ) throws Exception {
+        byte[] combinedKey;
+        byte[] Kp;
+        byte[] Kp_prime;
+        // 客户端：生成搜索请求
+        long startTime = System.nanoTime();
+        List<String> BPC = preCover(Matrix);
+        long client_time2 = System.nanoTime();
+        BigInteger SumP = BigInteger.ZERO;
+        boolean exist = true;
+        for (String p : BPC) {
+            // 客户端处理
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
+            Kp = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
+            Kp_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4);
+            int c = getCounter(p);
+            if (c == -1) {
+//                System.out.println("没有匹配的结果");
+                continue;
+            }
+//            Key STp = dprf.DelKey(Kp_prime, c);
+            Key STp = dprf.DelKey(Kp, c);
+//            System.out.println("STp:"+ STp);
+            // 服务器处理
+            BigInteger SumPe = BigInteger.ZERO;
+            // 从 c 开始迭代
+            for (int i = c; i >= 0; i--) {
+                byte[] Ti = dprf.Derive(STp, i);
+//                System.out.println("Ti:"+ Arrays.toString(Ti));
+                byte[] UTi = hashFunction1(Kp_prime, Ti);
+//                System.out.println("UTi:"+ Arrays.toString(UTi));
 
+                BigInteger e_p_i = PDB.get(new String(UTi, StandardCharsets.UTF_8));
+//                System.out.println("c:"+c);
+//                System.out.println(new String(UTi, StandardCharsets.UTF_8) + ": ");
+//                for (Map.Entry<String, BigInteger> entry : PDB.entrySet()) {
+//                    System.out.println("c:"+c);
+//                    System.out.println(entry.getKey() + ": " + entry.getValue());
+//                }
+                if (e_p_i == null) {
+//                    System.out.println("e_p_i = null");
+                    break;
+                } else {
+                    SumPe = SumPe.add(e_p_i).mod(n);
+                    PDB.remove(new String(UTi, StandardCharsets.UTF_8)); // 将密文标记为已删除
+                }
+            }
+            byte[] Tc = dprf.Derive(STp, c);
+            byte[] UTc = hashFunction1(Kp_prime, Tc);
+            PDB.put(new String(UTc, StandardCharsets.UTF_8), SumPe); // 将最新的索引更新至UTc
+            SumP = SumP.add(SumPe).mod(n);
+        }
+
+        List<BigInteger> SumWList = new ArrayList<>();
+        for (String w : WQ) {
+            // 客户端处理
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
+            byte[] Kw = new byte[LAMBDA / 8];
+            byte[] Kw_prime = new byte[LAMBDA / 8];
+            Kw = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
+            Kw_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4);
+            int c = getCounter(w);
+            if (c == -1) {
+                exist = false;
+//                System.out.println("没有匹配"+w+"的结果");
+                break;
+            }
+            Key STw = dprf.DelKey(Kw, c);
+//            clientRequest_w.add(new Object[]{Kw_prime, STw, c});
+            BigInteger SumWe = BigInteger.ZERO;
+
+            // 服务器处理
+            // 从 c 开始迭代
+            for (int i = c; i >= 0; i--) {
+                byte[] Ti = dprf.Derive(STw, i);
+                byte[] UTi = hashFunction1(Kw_prime, Ti);
+
+                BigInteger e_p_i = KDB.get(new String(UTi, StandardCharsets.UTF_8));
+                if (e_p_i == null) {
+                    break;
+                } else {
+                    SumWe = SumWe.add(e_p_i).mod(n);
+                    KDB.remove(new String(UTi, StandardCharsets.UTF_8)); // 将密文标记为已删除
+                }
+            }
+            byte[] Tc = dprf.Derive(STw, c);
+            byte[] UTc = hashFunction1(Kw_prime, Tc);
+            KDB.put(new String(UTc, StandardCharsets.UTF_8), SumWe); // 将最新的索引更新至UTc
+            SumWList.add(SumWe);
+        }
+        if(!exist){
+            long client_time_notexist = System.nanoTime();
+            // 存储到列表中
+            double msclient_time = (client_time_notexist - startTime) / 1_000_000.0;
+            double msserver_time = 0 / 1_000_000.0;
+            clientSearchTimes.add(msclient_time);
+            serverSearchTimes.add(msserver_time);
+            return BigInteger.ZERO;
+        }
+        //客户端解密阶段
+        long client_time3 = System.nanoTime();
+        BigInteger SumP_sk = BigInteger.ZERO;
+        for (String p : BPC) {
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
+            Kp_prime = new byte[LAMBDA / 8];
+            System.arraycopy(combinedKey, LAMBDA / 8, Kp_prime, 0, LAMBDA / 8);
+            int c = getCounter(p);
+
+            for (int i = c; i >= 0; i--) {
+                BigInteger skp_i = hashFunction2(Kp_prime, i);
+                SumP_sk = SumP_sk.add(skp_i).mod(n);
+            }
+        }
+        // 解密前缀部分
+        BigInteger BR = SumP.subtract(SumP_sk).add(n).mod(n);
+//        System.out.println("BR1:");
+//        findIndexesOfOne(BR);
+        for (int j = 0; j < WQ.length; j++) {
+            String w = WQ[j];
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
+            byte[] Kw_prime = new byte[LAMBDA / 8];
+            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
+            int c = getCounter(w);
+            BigInteger SumW_sk = BigInteger.ZERO;
+            for (int i = c; i >= 0; i--) {
+                BigInteger skw_i = hashFunction2(Kw_prime, i);
+                SumW_sk = SumW_sk.add(skw_i).mod(n);
+            }
+
+            // 解密并与前缀部分进行与操作
+            BR = BR.and(SumWList.get(j).subtract(SumW_sk).add(n).mod(n));
+        }
+//        System.out.println("BR2:");
+//        findIndexesOfOne(BR);
+        long client_time4 = System.nanoTime();
+        // 输出总耗时
+//        double totalLoopTimeMs = (System.nanoTime() - startTime) / 1_000_000.0;
+//        System.out.println("TDSC2023_Biginteger Total search time: " + totalLoopTimeMs + " ms).");
+        // 客户端部分结束计时
+//        long server_time2 = System.nanoTime();
+        // 输出客户端和服务器端的时间消耗
+        double msclient_time = ((client_time2 - startTime) + (client_time4 - client_time3)) / 1_000_000.0;
+        double msserver_time = (client_time3 - client_time2) / 1_000_000.0;
+//        double total_time = msclient_time + msserver_time;
+//        System.out.println("TDSC: Client time part 1: " + msclient_time1 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
+
+        // 存储到列表中
+        clientSearchTimes.add(msclient_time);
+        serverSearchTimes.add(msserver_time);
+        return BR;
+    }
     /**
      * 伪随机函数 P'
      *
