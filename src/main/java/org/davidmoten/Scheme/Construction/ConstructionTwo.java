@@ -470,6 +470,37 @@ public class ConstructionTwo {
         return andStrings(Sx_result, Sy_result);  // 返回最终搜索结果
     }
 
+    // Server Search：服务器根据搜索令牌 (TAGX, TAGY) 返回加密结果
+    private List<List<String>> serverSearch(List<String> TAGX, List<String> TAGY) {
+        List<String> ER_X = new ArrayList<>();
+        List<String> ER_Y = new ArrayList<>();
+
+        // 搜索 X 轴的加密数据 (ei)
+        for (String tagX : TAGX) {
+            String ei = Ux.get(tagX);
+            if (ei != null) {
+                ER_X.add(ei);
+            } else {
+                //System.out.println("TAGX (X-axis search token)不存在:");
+            }
+        }
+
+        // 搜索 Y 轴的加密数据 (ei_prime)
+        for (String tagY : TAGY) {
+            String ei_prime = Uy.get(tagY);
+            if (ei_prime != null) {
+                ER_Y.add(ei_prime);
+            } else {
+                //System.out.println("TAGY (Y-axis search token)不存在:");
+            }
+        }
+
+        List<List<String>> ER = new ArrayList<>();
+        ER.add(ER_X);  // X 轴结果
+        ER.add(ER_Y);  // Y 轴结果
+
+        return ER;  // 返回加密结果集，分别为 ei 和 ei_prime
+    }
     // Update-x 方法实现
     public List<String> updateX(int[] Pi, int[] Pi_prime, boolean isX) throws Exception {
         int[] xCoordinates = this.xCoordinates;
@@ -553,38 +584,6 @@ public class ConstructionTwo {
             this.yCoordinates = newYCoordinates;
         }
         return LUx;  // 返回 LUx
-    }
-
-    // Server Search：服务器根据搜索令牌 (TAGX, TAGY) 返回加密结果
-    private List<List<String>> serverSearch(List<String> TAGX, List<String> TAGY) {
-        List<String> ER_X = new ArrayList<>();
-        List<String> ER_Y = new ArrayList<>();
-
-        // 搜索 X 轴的加密数据 (ei)
-        for (String tagX : TAGX) {
-            String ei = Ux.get(tagX);
-            if (ei != null) {
-                ER_X.add(ei);
-            } else {
-                //System.out.println("TAGX (X-axis search token)不存在:");
-            }
-        }
-
-        // 搜索 Y 轴的加密数据 (ei_prime)
-        for (String tagY : TAGY) {
-            String ei_prime = Uy.get(tagY);
-            if (ei_prime != null) {
-                ER_Y.add(ei_prime);
-            } else {
-                //System.out.println("TAGY (Y-axis search token)不存在:");
-            }
-        }
-
-        List<List<String>> ER = new ArrayList<>();
-        ER.add(ER_X);  // X 轴结果
-        ER.add(ER_Y);  // Y 轴结果
-
-        return ER;  // 返回加密结果集，分别为 ei 和 ei_prime
     }
 
     // Client Update 方法

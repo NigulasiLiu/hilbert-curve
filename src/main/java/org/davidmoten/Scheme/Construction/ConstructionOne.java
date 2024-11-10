@@ -338,7 +338,7 @@ public class ConstructionOne {
         findMinimumCoverRecursive(newRange[0], newRange[1], BT, nodesInRange);
     }
 
-    private int[] rangeConvert(int t, int[] R) {
+    public int[] rangeConvert(int t, int[] R) {
         return new int[]{(int) Math.pow(2, t) - 1 + R[0], (int) Math.pow(2, t) - 1 + R[1]};
     }
 
