@@ -340,7 +340,11 @@ public class ConstructionTwo {
 
 
     // setupEDS 方法实现
+    // setupEDS 方法实现
     public void setupEDS(Map<Integer, String> Sx, Map<Integer, String> Sy) throws Exception {
+        int totalSteps = BTx.length + BTy.length;
+        int completedSteps = 0;
+
         // 处理 X 轴 (BTx)
         for (int i = 0; i < BTx.length; i++) {
             Node ni = BTx[i];
@@ -357,6 +361,10 @@ public class ConstructionTwo {
                 String ei = encrypt(Ki, new BigInteger(BTx[ni.index].label), C, "homomorphic");
                 Ux.put(TAGXi, ei);
             }
+
+            // 更新进度条
+            completedSteps++;
+            printProgress(completedSteps, totalSteps);
         }
 
         // 处理 Y 轴 (BTy)
@@ -375,8 +383,38 @@ public class ConstructionTwo {
                 String ei = encrypt(Ki, new BigInteger(BTy[ni.index].label), C_prime, "homomorphic");
                 Uy.put(TAGYi, ei);
             }
+
+            // 更新进度条
+            completedSteps++;
+            printProgress(completedSteps, totalSteps);
         }
     }
+
+    // 进度条打印函数
+    private void printProgress(int completed, int total) {
+        int progressWidth = 50; // 进度条的宽度
+        int progress = (int) ((completed * 1.0 / total) * progressWidth);
+        StringBuilder progressBar = new StringBuilder();
+
+        progressBar.append("\r[");
+        for (int i = 0; i < progressWidth; i++) {
+            if (i < progress) {
+                progressBar.append("#");
+            } else {
+                progressBar.append(" ");
+            }
+        }
+        progressBar.append("] ");
+        progressBar.append(String.format("%d%%", (completed * 100) / total));
+
+        System.out.print(progressBar);
+
+        // 打印完成换行
+        if (completed == total) {
+            System.out.println();
+        }
+    }
+
 
     // BuildKey: 生成以 ni 为根的子树中所有节点的密钥
     public List<String> buildKey(Node ni, int Ks) {

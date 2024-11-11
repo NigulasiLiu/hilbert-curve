@@ -3,6 +3,7 @@ package org.davidmoten.PerformanceEval;
 import org.davidmoten.DataProcessor.DataSetAccess;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 import org.davidmoten.Scheme.Construction.ConstructionOne;
+import org.davidmoten.Scheme.Construction.ConstructionTwo;
 import org.davidmoten.Scheme.SPQS.SPQS_Biginteger;
 import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 
@@ -85,7 +86,7 @@ public class SearchTest {
         }
         //初始化ConstructionOne/Two
         ConstructionOne con1 = new ConstructionOne(lambda, t, updatetimes, xCoordinates, yCoordinates);
-        ConstructionOne con2 = new ConstructionOne(lambda, t, updatetimes, xCoordinates, yCoordinates);
+        ConstructionTwo con2 = new ConstructionTwo(lambda, t, updatetimes, xCoordinates, yCoordinates);
 
         // 构建con1,con2二叉树和倒排索引
         con1.BTx = con1.buildBinaryTree(t);
