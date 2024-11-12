@@ -3,7 +3,9 @@ package org.davidmoten.Scheme.Construction;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -74,21 +76,43 @@ public class ConstructionOne {
         // 示例逻辑: (key + value) % n
         BigInteger encryptedValue = key.add(value).mod(n);
         return encryptedValue.toString();
+    }    // AES加密
+    // 数字偏移加密方法，返回只包含数字的加密字符串
+    private String aesEncrypt(String key, String data) throws Exception {
+        // 将密钥转换为整数，用于生成偏移量
+        int shift = computeNumericShift(key);
+
+        StringBuilder encryptedData = new StringBuilder();
+        for (char ch : data.toCharArray()) {
+            // 偏移字符，使其仅包含数字字符（0-9）
+            int encryptedChar = (ch + shift) % 10;  // 确保数字字符在0-9范围内循环
+            encryptedData.append(encryptedChar);
+        }
+        return encryptedData.toString();
     }
 
-    // AES加密
-    private String aesEncrypt(String key, String data) throws Exception {
-        // 使用AES算法加密
-        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-        keyGenerator.init(128);
-        SecretKey secretKey = keyGenerator.generateKey();
+    // 数字偏移解密方法
+    private String aesDecrypt(String key, String encryptedData) throws Exception {
+        // 计算与加密相同的偏移量
+        int shift = computeNumericShift(key);
 
-        Cipher cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-        byte[] encryptedBytes = cipher.doFinal(data.getBytes());
+        StringBuilder decryptedData = new StringBuilder();
+        for (char ch : encryptedData.toCharArray()) {
+            // 反向偏移字符，使其恢复原字符
+            int decryptedChar = (ch - '0' - shift + 10) % 10 + '0';
+            decryptedData.append((char) decryptedChar);
+        }
+        return decryptedData.toString();
+    }
 
-        // 将加密后的字节转换为Base64字符串
-        return Base64.getEncoder().encodeToString(encryptedBytes);
+    // 计算数字偏移量（根据密钥生成一个整数偏移量）
+    private int computeNumericShift(String key) {
+        // 计算 key 的哈希值，然后对其取模，生成一个 0 到 9 之间的偏移量
+        int shift = 0;
+        for (char ch : key.toCharArray()) {
+            shift += ch;  // 累加字符的 ASCII 值
+        }
+        return shift % 10;  // 将偏移量限制在 0-9 范围内
     }
 
     // 修改后的encrypt方法，使用BigInteger类型处理加密
@@ -132,24 +156,6 @@ public class ConstructionOne {
         return String.format("%0" + requiredLength + "d", new BigInteger(decrypted));
     }
 
-    // AES解密
-    private String aesDecrypt(String key, String encryptedData) throws Exception {
-        // 将Base64编码的加密数据转换为字节数组
-        byte[] encryptedBytes = Base64.getDecoder().decode(encryptedData);
-
-        // 生成AES密钥
-        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-        keyGenerator.init(128);
-        SecretKey secretKey = keyGenerator.generateKey();
-
-        // 使用AES解密
-        Cipher cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.DECRYPT_MODE, secretKey);
-        byte[] decryptedBytes = cipher.doFinal(encryptedBytes);
-
-        // 将解密后的字节转换为字符串
-        return new String(decryptedBytes);
-    }
 
     // 修改后的buildBinaryTree方法，返回Node[]数组
     public Node[] buildBinaryTree(int t) {
@@ -344,7 +350,6 @@ public class ConstructionOne {
 
 
     // setupEDS 方法实现
-    // setupEDS 方法实现
     public void setupEDS(Map<Integer, String> Sx, Map<Integer, String> Sy) throws Exception {
         int totalSteps = BTx.length + BTy.length;
         int completedSteps = 0;
@@ -362,7 +367,7 @@ public class ConstructionOne {
             // 对 X 轴的节点进行加密处理并存储到 Ux
             if (Sx.containsKey(ni.index)) {
                 // 使用 BigInteger 处理label
-                String ei = encrypt(Ki, new BigInteger(BTx[ni.index].label), C, "homomorphic");
+                String ei = encrypt(Ki, new BigInteger(BTx[ni.index].label), C, "aes");
                 Ux.put(TAGXi, ei);
             }
 
@@ -384,7 +389,7 @@ public class ConstructionOne {
             // 对 Y 轴的节点进行加密处理并存储到 Uy
             if (Sy.containsKey(ni.index)) {
                 // 使用 BigInteger 处理label
-                String ei = encrypt(Ki, new BigInteger(BTy[ni.index].label), C_prime, "homomorphic");
+                String ei = encrypt(Ki, new BigInteger(BTy[ni.index].label), C_prime, "aes");
                 Uy.put(TAGYi, ei);
             }
 
@@ -477,7 +482,7 @@ public class ConstructionOne {
         // 对 X 轴的每个节点进行解密，并使用 orStrings 累积结果
         for (int i = 0; i < xNodes.size(); i++) {
             List<String> Kx_dec = buildKey(xNodes.get(i), Ks);
-            String decryptedX = decrypt(ER.get(0).get(i), C, Kx_dec.get(0), "homomorphic");
+            String decryptedX = decrypt(ER.get(0).get(i), C, Kx_dec.get(0), "aes");
 
             // 打印 ER.get(0).get(i)
 //            System.out.print("Kx: " + Kx_dec.get(0));
@@ -494,7 +499,7 @@ public class ConstructionOne {
         // 对 Y 轴的每个节点进行解密，并使用 orStrings 累积结果
         for (int i = 0; i < yNodes.size(); i++) {
             List<String> Ky_dec = buildKey(yNodes.get(i), Ks);
-            String decryptedY = decrypt(ER.get(1).get(i), C_prime, Ky_dec.get(0), "homomorphic");
+            String decryptedY = decrypt(ER.get(1).get(i), C_prime, Ky_dec.get(0), "aes");
 
             // 打印 yNodes.get(i) 和 decryptedY
 //            System.out.print("Ky: " + Ky_dec.get(0));
@@ -613,7 +618,7 @@ public class ConstructionOne {
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 进行加密
-                String eU = encrypt(KAlpha, new BigInteger(BTx[nAlpha.index].label), C, "homomorphic");
+                String eU = encrypt(KAlpha, new BigInteger(BTx[nAlpha.index].label), C, "aes");
                 //System.out.println("BTx[" + nAlpha.index + "].label: " + BTx[nAlpha.index].label + ", eUx: " + eU + ", C: " + C);
 
                 // 将更新的标签和密文存入 LUx
@@ -632,7 +637,7 @@ public class ConstructionOne {
                     // 更新父节点
                     String TAGXBeta = generatePRF(Kx, beta);
                     String KBeta = generatePRF(Ks, beta);
-                    String eUBeta = encrypt(KBeta, new BigInteger(BTx[beta].label), C, "homomorphic");
+                    String eUBeta = encrypt(KBeta, new BigInteger(BTx[beta].label), C, "aes");
                     // 添加到 LUx
                     LUx.add(TAGXBeta + "," + eUBeta);
                 }
@@ -661,7 +666,7 @@ public class ConstructionOne {
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 进行加密
-                String eU = encrypt(KAlpha, new BigInteger(BTy[nAlpha.index].label), C_prime, "homomorphic");
+                String eU = encrypt(KAlpha, new BigInteger(BTy[nAlpha.index].label), C_prime, "aes");
                 //System.out.println("BTy[" + nAlpha.index + "].label: " + BTy[nAlpha.index].label + ", eUy: " + eU + ", C_prime: " + C_prime);
                 // 将更新的标签和密文存入 LUx
                 LUx.add(TAGXAlpha + "," + eU);
@@ -679,7 +684,7 @@ public class ConstructionOne {
                     // 更新父节点
                     String TAGXBeta = generatePRF(Kx, beta);
                     String KBeta = generatePRF(Ks, beta);
-                    String eUBeta = encrypt(KBeta, new BigInteger(BTy[beta].label), C_prime, "homomorphic");
+                    String eUBeta = encrypt(KBeta, new BigInteger(BTy[beta].label), C_prime, "aes");
                     // 添加到 LUx
                     LUx.add(TAGXBeta + "," + eUBeta);
                 }
@@ -854,11 +859,11 @@ public class ConstructionOne {
 //        construction.printBinaryWithIndexes(searchResult1);
 //        endTime = System.nanoTime();
 //        System.out.printf("第二次打印搜索结果时间: %.5f ms%n", (endTime - startTime) / 1_000_000.0);
-//        experiment_setup_cost();
-//        experiment_search_complexity_dimension();
-//        experiment_search_complexity_data_points();
+        experiment_setup_cost();
+        experiment_search_complexity_dimension();
+        experiment_search_complexity_data_points();
         experiment_update_complexity_dimension();
-        experiment_update_complexity_update_points();
+//        experiment_update_complexity_update_points();
     }
 
     public static void experiment_setup_cost() throws Exception {
@@ -995,7 +1000,7 @@ public class ConstructionOne {
     public static void experiment_update_complexity_update_points() throws Exception {
         int lambda = 128;
         int t = 15;  // 维度大小
-        int N = 20000;  // 数据点数量
+        int N = 2000;  // 数据点数量
 
         for (int numUpdates = 10; numUpdates <= 100; numUpdates += 10) {
             int[] xCoordinates = generateRandomCoordinates(N, t);

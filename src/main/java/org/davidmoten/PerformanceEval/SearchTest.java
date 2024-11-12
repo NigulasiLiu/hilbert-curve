@@ -29,8 +29,8 @@ public class SearchTest {
         //搜索次数,用于计算合理的平均值
         int searchtimes;
         //需要在内存中存储，所以需要插入updatetime个Object
-        int updatetimes = 20000;
-        int batchSize = 400; // 每次处理x个更新
+        int updatetimes = 100;
+        int batchSize = 20; // 每次处理x个更新
         //数据集大小为 1 Million 个条目
         int objectnums = 1000000;
         //相同元素(关键字或者位置point)的最大数量为10W
@@ -103,25 +103,51 @@ public class SearchTest {
         for (int i = 0; i < delupdatetimes; i++) {
             spqs.removeExtremesUpdateTime(); // 移除SPQS的异常更新时间
             tdsc2023.removeExtremesUpdateTime(); // 移除TDSC2023的异常更新时间
+//            spqs.removeExtremesSearchTime();
+//            tdsc2023.removeExtremesSearchTime();
         }
 
 
 
 
-        Scanner scanner = new Scanner(System.in);
         boolean continueSearch = true;
         int div;
         int searchEdgeLengthPer;
 
+        Scanner scanner = new Scanner(System.in);
         while (continueSearch) {
             // 获取用户输入的 searchtimes 和 l
             System.out.print("请输入 searchtimes: ");
             searchtimes = scanner.nextInt();
-//            System.out.print("请输入 div: ");
-            div = 100 * (1<<5);
+            // 检查输入是否为 -1，退出程序
+            if (searchtimes == -1) {
+                System.out.println("程序已退出。");
+                break;
+            }
+            // 检查输入是否小于 100
+            if (searchtimes >= 100) {
+                System.out.println("输入的 searchtimes 必须小于 100，请重新输入。");
+                continue;
+            }
 
+            // 获取用户输入的 searchEdgeLengthPer
             System.out.print("请输入 searchEdgeLengthPer 的值 (控制 Hilbert 范围): ");
             searchEdgeLengthPer = scanner.nextInt();
+
+            // 检查输入是否为 -1，退出程序
+            if (searchEdgeLengthPer == -1) {
+                System.out.println("程序已退出。");
+                break;
+            }
+
+            // 检查输入是否小于 100
+            if (searchEdgeLengthPer >= 100) {
+                System.out.println("输入的 searchEdgeLengthPer 必须小于 100，请重新输入。");
+                continue;
+            }
+
+//            System.out.print("请输入 div: ");
+            div = 100 * (1<<5);
             int xstart =random.nextInt(edgeLength*(div-searchEdgeLengthPer)/div);
             int ystart =random.nextInt(edgeLength*(div-searchEdgeLengthPer)/div);
             int i1 = edgeLength * (searchEdgeLengthPer) / div;
@@ -147,8 +173,11 @@ public class SearchTest {
 //                tdsc2023.Search(R_min, R_max, WQ);
                 // 执行搜索操作
                 spqs.ObjectSearch(matrixToSearch, WQ);
-                tdsc2023.Search(matrixToSearch, WQ);
 
+                // 测量搜索时间
+//                long startTimeTDSC = System.nanoTime();
+                tdsc2023.Search(matrixToSearch, WQ);
+//                tdscSearchTimes.add((System.nanoTime() - startTimeTDSC) / 1e6);
                 // 记录每次搜索的平均耗时
 //                double spqsAvgClientSearchTime = spqs.getAverageClientTime();
 //                double spqsAvgServerSearchTime = spqs.getAverageServerTime();

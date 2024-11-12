@@ -21,6 +21,8 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 public class SPQS_Biginteger {
+    private ConcurrentHashMap<String, CipherText> PDB; // 服务器存储的密文数据库
+    private ConcurrentHashMap<String, CipherText> KDB; // 服务器存储的密文数据库
     // 列表用于存储 update 和 search 的时间
     public List<Double> totalUpdateTimes = new ArrayList<>();    // 存储 update 操作的总耗时
     public List<Double> clientSearchTimes = new ArrayList<>();   // 存储客户端 search 操作的时间
@@ -31,8 +33,8 @@ public class SPQS_Biginteger {
     private final byte[] intBuffer = new byte[4]; // 用于缓存int转byte的缓冲区
     private HashMap<String, int[]> SC;  // 客户端状态
     private HashMap<String, BigInteger> SS;  // 服务器状态
-    private ConcurrentHashMap<String, Object[]> PDB; // 服务器存储的密文数据库
-    private ConcurrentHashMap<String, Object[]> KDB; // 服务器存储的密文数据库
+//    private ConcurrentHashMap<String, Object[]> PDB; // 服务器存储的密文数据库
+//    private ConcurrentHashMap<String, Object[]> KDB; // 服务器存储的密文数据库
 
     // 伪随机函数的哈希算法
     private static final String HMAC_ALGORITHM = "HmacSHA256";
@@ -51,7 +53,7 @@ public class SPQS_Biginteger {
     private BPCGenerator bpcGenerator;
 
     // 修改后的构造函数
-    public SPQS_Biginteger (int maxFiles,int order, int dimension) throws NoSuchAlgorithmException {
+    public SPQS_Biginteger(int maxFiles, int order, int dimension) throws NoSuchAlgorithmException {
         this.messageDigest = MessageDigest.getInstance(HASH_ALGORITHM);
 //        this.filePath = filePath;
 //        this.maxFiles = maxFiles;
@@ -157,11 +159,12 @@ public class SPQS_Biginteger {
 //        System.out.println("BPC2:" + BinaryResults);
         return BinaryResults;
     }
+
     public List<String> preCover(BigInteger[][] Matrix) {
         //生成min到max的所有Bigint
-        BigInteger[] R = new BigInteger[Matrix.length*Matrix[0].length];
-        for(int i = 0; i < Matrix.length; i++) {
-            for(int j = 0; j < Matrix[0].length; j++) {
+        BigInteger[] R = new BigInteger[Matrix.length * Matrix[0].length];
+        for (int i = 0; i < Matrix.length; i++) {
+            for (int j = 0; j < Matrix[0].length; j++) {
                 R[i * Matrix[0].length + j] = Matrix[i][j];
             }
         }
@@ -175,6 +178,7 @@ public class SPQS_Biginteger {
 //        System.out.println("BPC2:" + BinaryResults);
         return BinaryResults;
     }
+
     /**
      * Setup 初始化操作
      *
@@ -185,18 +189,306 @@ public class SPQS_Biginteger {
         System.out.println("Setup complete with λ = " + lambda + ", n = " + n);
     }
 
+    public BigInteger ObjectSearch(BigInteger R_min, BigInteger R_max, String[] WQ) throws Exception {
+        long totalLoopTime = 0; // 初始化总时间变量
+        // 客户端：生成搜索请求
+        long startTime = System.nanoTime();
+        List<String> BPC = preCover(R_min, R_max);
+        long precoverTime = System.nanoTime() - startTime;
+//        System.out.println("PreCover time: " + precoverTime + " ns (" + (precoverTime/1e6) + " ms).");
+        // 累积的客户端和服务器时间
+        double totalClientTime = 0.0;
+        double totalServerTime = 0.0;
+        //存储p位图结果
+        BigInteger Sump = BigInteger.ZERO;
+        boolean exist = true;
+        // 客户端处理前缀集合
+        for (String p : BPC) {
+            //Sump = Sump.or(search(p));
+            // 记录单次循环的开始时间
+            long loopStartTime = System.nanoTime();
+            // 客户端部分计时
+            long client_time1 = System.nanoTime();
+
+            // Step 1: 生成Kw和Kw_prime (客户端)
+            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
+            byte[] Kp = new byte[LAMBDA / 8];
+            byte[] Kp_prime = new byte[LAMBDA / 8];
+            System.arraycopy(combinedKey, 0, Kp, 0, LAMBDA / 8);
+            System.arraycopy(combinedKey, LAMBDA / 8, Kp_prime, 0, LAMBDA / 8);
+
+            // Step 2: 获取客户端的当前关键词状态
+            int[] state = SC.get(p);
+            // 客户端部分结束计时
+            long client_time2 = System.nanoTime();
+            // 若state为null，则跳出循环
+            if (state == null) {
+//                exist = false;
+//                System.out.println("没有匹配:"+p+"的结果");
+                double msclient_time1 = (client_time2 - client_time1) / 1e6;
+                totalClientTime += msclient_time1;
+                totalServerTime += 0; // 没有进行服务器操作，因此设为0
+                continue;
+            }
+            // Step 3: 检查状态是否为null
+
+            // 记录 Rc, c0, c (客户端)
+            int Rc = state[2];
+            int c0 = state[0];
+            int c = state[1];
+
+
+            // 开始服务器部分计时
+            long server_time1 = System.nanoTime();
+
+            // Step 1: 检查 SS[Kw] 的状态 (服务器)
+            // 如果不存在，则初始化为全0的BigInteger
+            BigInteger ep = SS.getOrDefault(new String(Kp, StandardCharsets.UTF_8), BigInteger.ZERO); // 从SS中读取
+            // Step 2: 初始化一个空的map来存储结果E (服务器)
+            Map<Integer, BigInteger[]> E = new HashMap<>();
+
+            // Step 3: 从c到c0进行循环 (服务器)
+            int Ri = Rc;
+            for (int i = c; i >= c0; i--) {
+                // Step 4: 计算I
+                byte[] I = hashFunction(Kp, Ri);
+
+                // Step 5: 从PDB中检索密文
+//                Object[] ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
+                CipherText ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
+
+                // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
+                BigInteger ea = ciphertext.getEa();
+                BigInteger eb = ciphertext.getEb();
+                E.put(i - c0, new BigInteger[]{ea, eb});
+
+                // Step 7: 从PDB中移除该密文
+                PDB.remove(new String(I, StandardCharsets.UTF_8));
+
+                // Step 8: 更新Ri-1 = C ⊕ H2(Kw, Ri)
+                byte[] C = ciphertext.getC();
+                Ri = new BigInteger(C).xor(new BigInteger(hashFunction(Kp, Ri))).intValue();
+            }
+
+            // 服务器部分结束计时
+            long server_time2 = System.nanoTime();
+
+            // 开始客户端接收并处理部分计时
+            long client_time3 = System.nanoTime();
+
+            // Step 1: 初始化匹配文件的位图 (客户端)
+            BigInteger bsp = BigInteger.ZERO;
+
+            // Step 2-3: 解密ep (客户端)
+            if (!ep.equals(BigInteger.ZERO)) {
+                byte[] H5 = hashFunction(Kp_prime, c0);
+                BigInteger H5BigIntHash = new BigInteger(1, H5);
+                bsp = ep.xor(H5BigIntHash);  // 执行异或操作
+            }
+
+            // Step 5: 循环解密每个密文并更新bsw (客户端)
+            for (int i = c0; i <= c; i++) {
+                BigInteger[] encryptPDBiBitmap = E.get(i - c0);
+                BigInteger ea = encryptPDBiBitmap[0];
+                BigInteger eb = encryptPDBiBitmap[1];
+
+                BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kp_prime, i));
+//                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
+                BigInteger bsa = ea.xor(hashKw_prime_H3);
+                BigInteger bsb = eb.xor(hashKw_prime_H3);
+
+                // 更新bsw,not按位取反，negate取负数
+                bsp = bsp.and(bsa.not()).xor(bsa.and(bsb));
+            }
+
+            // Step 10: 更新客户端状态
+            int Rc_plus_1 = getRandomFromPool();
+            SC.put(p, new int[]{c + 1, c, Rc_plus_1});
+            // Step 11: 重新加密 bsw
+            byte[] H5 = hashFunction(Kp_prime, c + 1);
+            ep = bsp.xor(new BigInteger(1, H5));
+
+            // 客户端接收部分结束计时
+            long client_time4 = System.nanoTime();
+            // 记录结束时间并计算本次迭代的耗时
+            long loopEndTime = System.nanoTime();
+            long loopDurationNs = loopEndTime - loopStartTime;
+            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
+
+//            double loopDurationMs = loopDurationNs / 1e6;
+            //System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
+
+
+            // 服务器更新 SS
+            SS.put(new String(Kp, StandardCharsets.UTF_8), ep);
+            // 输出客户端和服务器端的时间消耗
+            double msclient_time1 = (client_time2 - client_time1) / 1e6;
+            double msclient_time2 = (client_time4 - client_time3) / 1e6;
+            double msserver_time = (server_time2 - server_time1) / 1e6;
+            // 累加客户端和服务器的时间
+            totalClientTime += msclient_time1 + msclient_time2;
+            totalServerTime += msserver_time;
+            double total_time = msclient_time1 + msclient_time2 + msserver_time;
+//            System.out.println("prefix encode: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
+
+//            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
+            Sump = Sump.or(bsp);
+        }
+
+        //存储w位图结果
+        BigInteger Sumw = BigInteger.ZERO;
+        // 客户端处理关键字集合
+        for (String w : WQ) {
+            // 记录单次循环的开始时间
+            long loopStartTime = System.nanoTime();
+            // 客户端部分计时
+            long client_time1 = System.nanoTime();
+
+            // Step 1: 生成Kw和Kw_prime (客户端)
+            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
+            byte[] Kw = new byte[LAMBDA / 8];
+            byte[] Kw_prime = new byte[LAMBDA / 8];
+            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
+            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
+
+            // Step 2: 获取客户端的当前关键词状态
+            int[] state = SC.get(w);
+            // 客户端部分结束计时
+            long client_time2 = System.nanoTime();
+            if (state == null) {
+                exist = false;
+//                System.out.println("没有匹配:"+w+"的结果");
+                double msclient_time1 = (client_time2 - client_time1) / 1e6;
+                totalClientTime += msclient_time1;
+                totalServerTime += 0; // 没有服务器操作
+                break;
+            }
+            // Step 3: 检查状态是否为null
+
+            // 记录 Rc, c0, c (客户端)
+            int Rc = state[2];
+            int c0 = state[0];
+            int c = state[1];
+
+
+            // 开始服务器部分计时
+            long server_time1 = System.nanoTime();
+
+            // Step 1: 检查 SS[Kw] 的状态 (服务器)
+            // 如果不存在，则初始化为全0的BigInteger
+            BigInteger ew = SS.getOrDefault(new String(Kw, StandardCharsets.UTF_8), BigInteger.ZERO); // 从SS中读取
+            // Step 2: 初始化一个空的map来存储结果E (服务器)
+            Map<Integer, BigInteger[]> E = new HashMap<>();
+
+            // Step 3: 从c到c0进行循环 (服务器)
+            int Ri = Rc;
+            for (int i = c; i >= c0; i--) {
+                // Step 4: 计算I
+                byte[] I = hashFunction(Kw, Ri);
+
+                // Step 5: 从PDB中检索密文
+                CipherText ciphertext = KDB.get(new String(I, StandardCharsets.UTF_8));
+
+                // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
+                BigInteger ea = ciphertext.getEa();
+                BigInteger eb = ciphertext.getEb();
+                E.put(i - c0, new BigInteger[]{ea, eb});
+
+                // Step 7: 从PDB中移除该密文
+                KDB.remove(new String(I, StandardCharsets.UTF_8));
+
+                // Step 8: 更新Ri-1 = C ⊕ H2(Kw, Ri)
+                byte[] C = ciphertext.getC();
+                Ri = new BigInteger(C).xor(new BigInteger(hashFunction(Kw, Ri))).intValue();
+            }
+
+            // 服务器部分结束计时
+            long server_time2 = System.nanoTime();
+
+            // 开始客户端接收并处理部分计时
+            long client_time3 = System.nanoTime();
+
+            // Step 1: 初始化匹配文件的位图 (客户端)
+            BigInteger bsw = BigInteger.ZERO;
+
+            // Step 2-3: 解密ew (客户端)
+            if (!ew.equals(BigInteger.ZERO)) {
+                bsw = ew;
+                byte[] H5 = hashFunction(Kw_prime, c0);
+                BigInteger H5BigInt = new BigInteger(1, H5);
+                bsw = bsw.xor(H5BigInt);  // 执行异或操作
+            }
+
+            // Step 5: 循环解密每个密文并更新bsw (客户端)
+            for (int i = c0; i <= c; i++) {
+                BigInteger[] encryptPDBiBitmap = E.get(i - c0);
+                BigInteger ea = encryptPDBiBitmap[0];
+                BigInteger eb = encryptPDBiBitmap[1];
+
+                BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kw_prime, i));
+                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
+                BigInteger bsa = ea.xor(hashKw_prime_H3);
+                BigInteger bsb = eb.xor(hashKw_prime_H4);
+
+                // 更新bsw,not按位取反，negate取负数
+                bsw = bsw.and(bsa.not()).xor(bsa.and(bsb));
+            }
+
+            // Step 10: 更新客户端状态
+            int Rc_plus_1 = getRandomFromPool();
+            SC.put(w, new int[]{c + 1, c, Rc_plus_1});
+            // Step 11: 重新加密 bsw
+            byte[] H5 = hashFunction(Kw_prime, c + 1);
+            ew = bsw.xor(new BigInteger(1, H5));
+
+            // 客户端接收部分结束计时
+            long client_time4 = System.nanoTime();
+            // 记录结束时间并计算本次迭代的耗时
+            long loopEndTime = System.nanoTime();
+            long loopDurationNs = loopEndTime - loopStartTime;
+            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
+
+//            double loopDurationMs = loopDurationNs / 1e6;
+            //System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
+
+            // 服务器更新 SS
+            SS.put(new String(Kw, StandardCharsets.UTF_8), ew);
+            // 输出客户端和服务器端的时间消耗
+            double msclient_time1 = (client_time2 - client_time1) / 1e6;
+            double msclient_time2 = (client_time4 - client_time3) / 1e6;
+            double msserver_time = (server_time2 - server_time1) / 1e6;
+            // 累加客户端和服务器的时间
+            totalClientTime += msclient_time1 + msclient_time2;
+            totalServerTime += msserver_time;
+            double total_time = msclient_time1 + msclient_time2 + msserver_time;
+//            System.out.println("keyword: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
+
+//            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
+            Sumw = Sumw.or(bsw);
+        }
+        // 将累计的客户端和服务器时间分别存储到列表中
+        clientSearchTimes.add(totalClientTime);
+        serverSearchTimes.add(totalServerTime);
+        if (!exist) return BigInteger.ZERO;
+        // 输出总耗时
+//        double totalLoopTimeMs = totalLoopTime / 1e6;
+//        findIndexesOfOne(Sump);
+//        findIndexesOfOne(Sumw);
+//        System.out.println("Total loop time: " + totalLoopTime + " ns (" + totalLoopTimeMs + " ms).");
+//        System.out.println("SPQS_BITSET Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1e6)) + " ms).");
+        return Sump.and(Sumw);
+    }
     public void ObjectUpdate(long[] pSet, String[] W, String[] op, int[] files, int CounterLimits) throws Exception {
         byte[] combinedKey;
-        byte[] Kw;
-        byte[] Kw_prime;
+        byte[] Kw = new byte[LAMBDA / 8];
+        byte[] Kw_prime = new byte[LAMBDA / 8];
         long startTime = System.nanoTime();
         List<String> P = preCode(pSet);
         for (String p : P) {
             //Client
             combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
-            Kw = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
-            Kw_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4); // 假设 LAMBDA / 4 是所需的长度
-
+            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
+            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
             // Step 2: 获取客户端的当前关键词状态
             int[] state = SC.getOrDefault(p, new int[]{0, -1, getRandomFromPool()});
             // Step 3: 随机生成 Rc+1
@@ -210,7 +502,7 @@ public class SPQS_Biginteger {
             BigInteger bsb = BigInteger.ZERO;
 
             // 根据操作设置 bsa 和 bsb
-            for (int i=0;i<files.length;i++) {
+            for (int i = 0; i < files.length; i++) {
                 if ("add".equals(op[i])) {
                     bsa = bsa.setBit(files[i]);  // 添加操作，设置bsa中相应位为1
                     bsb = bsb.setBit(files[i]);  // 添加操作，设置bsb中相应位为1
@@ -227,15 +519,15 @@ public class SPQS_Biginteger {
             SC.put(p, new int[]{state[0], state[1] + 1, Rc_plus_1});
             //Server
             // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
-            PDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, ea, eb});
+//            PDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, ea, eb});
+            PDB.put(new String(I, StandardCharsets.UTF_8), new CipherText(C, ea, eb));
         }
         long pTime = System.nanoTime();
         for (String w : W) {
             //Client
             combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
-            Kw = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
-            Kw_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4); // 假设 LAMBDA / 4 是所需的长度
-
+            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
+            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
             // Step 2: 获取客户端的当前关键词状态
             int[] state = SC.getOrDefault(w, new int[]{0, -1, getRandomFromPool()});
             // Step 3: 随机生成 Rc+1
@@ -266,326 +558,34 @@ public class SPQS_Biginteger {
             SC.put(w, new int[]{state[0], state[1] + 1, Rc_plus_1});
             //Server
             // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
-            KDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, ea, eb});
+            KDB.put(new String(I, StandardCharsets.UTF_8), new CipherText(C, ea, eb));
         }
         long wTime = System.nanoTime();
         // 输出总耗时
-        double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
-//        System.out.println("SPQS_BITSET ptime: " + (pTime-startTime) / 1_000_000.0 + " ms.");
-//        System.out.println("SPQS_BITSET wtime: " + (wTime-pTime) / 1_000_000.0 + " ms.");
+        double totalLoopTimeMs = (System.nanoTime() - startTime) / 1e6;
+//        System.out.println("SPQS_BITSET ptime: " + (pTime-startTime) / 1e6 + " ms.");
+//        System.out.println("SPQS_BITSET wtime: " + (wTime-pTime) / 1e6 + " ms.");
 //        System.out.println("SPQS_BITSET Total update time: " + totalLoopTimeMs + " ms.");
         // 存储到列表中
         totalUpdateTimes.add(totalLoopTimeMs);
 //        System.out.println("Update operation completed.");
-    }
-    public BigInteger ObjectSearch(BigInteger R_min, BigInteger R_max, String[] WQ) throws Exception {
-        long totalLoopTime = 0; // 初始化总时间变量
-        // 客户端：生成搜索请求
-        long startTime = System.nanoTime();
-        List<String> BPC = preCover(R_min, R_max);
-        long precoverTime = System.nanoTime() - startTime;
-//        System.out.println("PreCover time: " + precoverTime + " ns (" + (precoverTime/1_000_000.0) + " ms).");
-        // 累积的客户端和服务器时间
-        double totalClientTime = 0.0;
-        double totalServerTime = 0.0;
-        //存储p位图结果
-        BigInteger Sump = BigInteger.ZERO;
-        boolean exist = true;
-        // 客户端处理前缀集合
-        for (String p : BPC) {
-            //Sump = Sump.or(search(p));
-            // 记录单次循环的开始时间
-            long loopStartTime = System.nanoTime();
-            // 客户端部分计时
-            long client_time1 = System.nanoTime();
-
-            // Step 1: 生成Kw和Kw_prime (客户端)
-            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
-            byte[] Kp = new byte[LAMBDA / 8];
-            byte[] Kp_prime = new byte[LAMBDA / 8];
-            System.arraycopy(combinedKey, 0, Kp, 0, LAMBDA / 8);
-            System.arraycopy(combinedKey, LAMBDA / 8, Kp_prime, 0, LAMBDA / 8);
-
-            // Step 2: 获取客户端的当前关键词状态
-            int[] state = SC.get(p);
-            // 客户端部分结束计时
-            long client_time2 = System.nanoTime();
-            // 若state为null，则跳出循环
-            if (state == null) {
-//                exist = false;
-//                System.out.println("没有匹配:"+p+"的结果");
-                double msclient_time1 = (client_time2 - client_time1) / 1_000_000.0;
-                totalClientTime += msclient_time1;
-                totalServerTime += 0; // 没有进行服务器操作，因此设为0
-                continue;
-            }
-            // Step 3: 检查状态是否为null
-
-            // 记录 Rc, c0, c (客户端)
-            int Rc = state[2];
-            int c0 = state[0];
-            int c = state[1];
-
-
-            // 开始服务器部分计时
-            long server_time1 = System.nanoTime();
-
-            // Step 1: 检查 SS[Kw] 的状态 (服务器)
-            // 如果不存在，则初始化为全0的BigInteger
-            BigInteger ep = SS.getOrDefault(new String(Kp, StandardCharsets.UTF_8), BigInteger.ZERO); // 从SS中读取
-            // Step 2: 初始化一个空的map来存储结果E (服务器)
-            Map<Integer, BigInteger[]> E = new HashMap<>();
-
-            // Step 3: 从c到c0进行循环 (服务器)
-            int Ri = Rc;
-            for (int i = c; i >= c0; i--) {
-                // Step 4: 计算I
-                byte[] I = hashFunction(Kp, Ri);
-
-                // Step 5: 从PDB中检索密文
-                Object[] ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
-
-                // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
-                BigInteger ea = (BigInteger) ciphertext[1];
-                BigInteger eb = (BigInteger) ciphertext[2];
-                E.put(i - c0, new BigInteger[]{ea, eb});
-
-                // Step 7: 从PDB中移除该密文
-                PDB.remove(new String(I, StandardCharsets.UTF_8));
-
-                // Step 8: 更新Ri-1 = C ⊕ H2(Kw, Ri)
-                byte[] C = (byte[]) ciphertext[0];
-                Ri = new BigInteger(C).xor(new BigInteger(hashFunction(Kp, Ri))).intValue();
-            }
-
-            // 服务器部分结束计时
-            long server_time2 = System.nanoTime();
-
-            // 开始客户端接收并处理部分计时
-            long client_time3 = System.nanoTime();
-
-            // Step 1: 初始化匹配文件的位图 (客户端)
-            BigInteger bsp = BigInteger.ZERO;
-
-            // Step 2-3: 解密ep (客户端)
-            if (!ep.equals(BigInteger.ZERO)) {
-                byte[] H5 = hashFunction(Kp_prime, c0);
-                BigInteger H5BigIntHash = new BigInteger(1, H5);
-                bsp = ep.xor(H5BigIntHash);  // 执行异或操作
-            }
-
-            // Step 5: 循环解密每个密文并更新bsw (客户端)
-            for (int i = c0; i <= c; i++) {
-                BigInteger[] encryptPDBiBitmap = E.get(i - c0);
-                BigInteger ea = encryptPDBiBitmap[0];
-                BigInteger eb = encryptPDBiBitmap[1];
-
-                BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kp_prime, i));
-//                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
-                BigInteger bsa = ea.xor(hashKw_prime_H3);
-                BigInteger bsb = eb.xor(hashKw_prime_H3);
-
-                // 更新bsw,not按位取反，negate取负数
-                bsp = bsp.and(bsa.not()).xor(bsa.and(bsb));
-            }
-
-            // Step 10: 更新客户端状态
-            int Rc_plus_1 = getRandomFromPool();
-            SC.put(p, new int[]{c + 1, c, Rc_plus_1});
-            // Step 11: 重新加密 bsw
-            byte[] H5 = hashFunction(Kp_prime, c + 1);
-            ep = bsp.xor(new BigInteger(1, H5));
-
-            // 客户端接收部分结束计时
-            long client_time4 = System.nanoTime();
-            // 记录结束时间并计算本次迭代的耗时
-            long loopEndTime = System.nanoTime();
-            long loopDurationNs = loopEndTime - loopStartTime;
-            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
-
-//            double loopDurationMs = loopDurationNs / 1_000_000.0;
-            //System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
-
-
-            // 服务器更新 SS
-            SS.put(new String(Kp, StandardCharsets.UTF_8), ep);
-            // 输出客户端和服务器端的时间消耗
-            double msclient_time1 = (client_time2 - client_time1) / 1_000_000.0;
-            double msclient_time2 = (client_time4 - client_time3) / 1_000_000.0;
-            double msserver_time = (server_time2 - server_time1) / 1_000_000.0;
-            // 累加客户端和服务器的时间
-            totalClientTime += msclient_time1 + msclient_time2;
-            totalServerTime += msserver_time;
-            double total_time = msclient_time1 + msclient_time2 + msserver_time;
-//            System.out.println("prefix encode: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
-
-//            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
-            Sump = Sump.or(bsp);
-        }
-
-        //存储w位图结果
-        BigInteger Sumw = BigInteger.ZERO;
-        // 客户端处理关键字集合
-        for (String w : WQ) {
-            // 记录单次循环的开始时间
-            long loopStartTime = System.nanoTime();
-            // 客户端部分计时
-            long client_time1 = System.nanoTime();
-
-            // Step 1: 生成Kw和Kw_prime (客户端)
-            byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
-            byte[] Kw = new byte[LAMBDA / 8];
-            byte[] Kw_prime = new byte[LAMBDA / 8];
-            System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
-            System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
-
-            // Step 2: 获取客户端的当前关键词状态
-            int[] state = SC.get(w);
-            // 客户端部分结束计时
-            long client_time2 = System.nanoTime();
-            if (state == null) {
-                exist = false;
-//                System.out.println("没有匹配:"+w+"的结果");
-                double msclient_time1 = (client_time2 - client_time1) / 1_000_000.0;
-                totalClientTime += msclient_time1;
-                totalServerTime += 0; // 没有服务器操作
-                break;
-            }
-            // Step 3: 检查状态是否为null
-
-            // 记录 Rc, c0, c (客户端)
-            int Rc = state[2];
-            int c0 = state[0];
-            int c = state[1];
-
-
-            // 开始服务器部分计时
-            long server_time1 = System.nanoTime();
-
-            // Step 1: 检查 SS[Kw] 的状态 (服务器)
-            // 如果不存在，则初始化为全0的BigInteger
-            BigInteger ew = SS.getOrDefault(new String(Kw, StandardCharsets.UTF_8), BigInteger.ZERO); // 从SS中读取
-            // Step 2: 初始化一个空的map来存储结果E (服务器)
-            Map<Integer, BigInteger[]> E = new HashMap<>();
-
-            // Step 3: 从c到c0进行循环 (服务器)
-            int Ri = Rc;
-            for (int i = c; i >= c0; i--) {
-                // Step 4: 计算I
-                byte[] I = hashFunction(Kw, Ri);
-
-                // Step 5: 从PDB中检索密文
-                Object[] ciphertext = KDB.get(new String(I, StandardCharsets.UTF_8));
-
-                // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
-                BigInteger ea = (BigInteger) ciphertext[1];
-                BigInteger eb = (BigInteger) ciphertext[2];
-                E.put(i - c0, new BigInteger[]{ea, eb});
-
-                // Step 7: 从PDB中移除该密文
-                KDB.remove(new String(I, StandardCharsets.UTF_8));
-
-                // Step 8: 更新Ri-1 = C ⊕ H2(Kw, Ri)
-                byte[] C = (byte[]) ciphertext[0];
-                Ri = new BigInteger(C).xor(new BigInteger(hashFunction(Kw, Ri))).intValue();
-            }
-
-            // 服务器部分结束计时
-            long server_time2 = System.nanoTime();
-
-            // 开始客户端接收并处理部分计时
-            long client_time3 = System.nanoTime();
-
-            // Step 1: 初始化匹配文件的位图 (客户端)
-            BigInteger bsw = BigInteger.ZERO;
-
-            // Step 2-3: 解密ew (客户端)
-            if (!ew.equals(BigInteger.ZERO)) {
-                bsw = ew;
-                byte[] H5 = hashFunction(Kw_prime, c0);
-                BigInteger H5BigInt = new BigInteger(1, H5);
-                bsw = bsw.xor(H5BigInt);  // 执行异或操作
-            }
-
-            // Step 5: 循环解密每个密文并更新bsw (客户端)
-            for (int i = c0; i <= c; i++) {
-                BigInteger[] encryptPDBiBitmap = E.get(i - c0);
-                BigInteger ea = encryptPDBiBitmap[0];
-                BigInteger eb = encryptPDBiBitmap[1];
-
-                BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kw_prime, i));
-                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
-                BigInteger bsa = ea.xor(hashKw_prime_H3);
-                BigInteger bsb = eb.xor(hashKw_prime_H4);
-
-                // 更新bsw,not按位取反，negate取负数
-                bsw = bsw.and(bsa.not()).xor(bsa.and(bsb));
-            }
-
-            // Step 10: 更新客户端状态
-            int Rc_plus_1 = getRandomFromPool();
-            SC.put(w, new int[]{c + 1, c, Rc_plus_1});
-            // Step 11: 重新加密 bsw
-            byte[] H5 = hashFunction(Kw_prime, c + 1);
-            ew = bsw.xor(new BigInteger(1, H5));
-
-            // 客户端接收部分结束计时
-            long client_time4 = System.nanoTime();
-            // 记录结束时间并计算本次迭代的耗时
-            long loopEndTime = System.nanoTime();
-            long loopDurationNs = loopEndTime - loopStartTime;
-            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
-
-//            double loopDurationMs = loopDurationNs / 1_000_000.0;
-            //System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
-
-            // 服务器更新 SS
-            SS.put(new String(Kw, StandardCharsets.UTF_8), ew);
-            // 输出客户端和服务器端的时间消耗
-            double msclient_time1 = (client_time2 - client_time1) / 1_000_000.0;
-            double msclient_time2 = (client_time4 - client_time3) / 1_000_000.0;
-            double msserver_time = (server_time2 - server_time1) / 1_000_000.0;
-            // 累加客户端和服务器的时间
-            totalClientTime += msclient_time1 + msclient_time2;
-            totalServerTime += msserver_time;
-            double total_time = msclient_time1 + msclient_time2 + msserver_time;
-//            System.out.println("keyword: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
-
-//            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
-            Sumw = Sumw.or(bsw);
-        }
-        // 将累计的客户端和服务器时间分别存储到列表中
-        clientSearchTimes.add(totalClientTime);
-        serverSearchTimes.add(totalServerTime);
-        if(!exist) return BigInteger.ZERO;
-        // 输出总耗时
-//        double totalLoopTimeMs = totalLoopTime / 1_000_000.0;
-//        findIndexesOfOne(Sump);
-//        findIndexesOfOne(Sumw);
-//        System.out.println("Total loop time: " + totalLoopTime + " ns (" + totalLoopTimeMs + " ms).");
-//        System.out.println("SPQS_BITSET Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1_000_000.0)) + " ms).");
-        return Sump.and(Sumw);
     }
     public BigInteger ObjectSearch(BigInteger[][] Matrix, String[] WQ) throws Exception {
         long totalLoopTime = 0; // 初始化总时间变量
         // 客户端：生成搜索请求
         long startTime = System.nanoTime();
         List<String> BPC = preCover(Matrix);
-        long precoverTime = System.nanoTime() - startTime;
-//        System.out.println("PreCover time: " + precoverTime + " ns (" + (precoverTime/1_000_000.0) + " ms).");
+//        System.out.println("PreCover time: " + precoverTime + " ns (" + (precoverTime/1e6) + " ms).");
         // 累积的客户端和服务器时间
-        double totalClientTime = 0.0;
-        double totalServerTime = 0.0;
+        long totalClientTime = System.nanoTime() - startTime;
+        long totalServerTime = 0;
         //存储p位图结果
         BigInteger Sump = BigInteger.ZERO;
         boolean exist = true;
         // 客户端处理前缀集合
         for (String p : BPC) {
-            //Sump = Sump.or(search(p));
-            // 记录单次循环的开始时间
-            long loopStartTime = System.nanoTime();
             // 客户端部分计时
-            long client_time1 = System.nanoTime();
+            long client_time_loop_start = System.nanoTime();
 
             // Step 1: 生成Kw和Kw_prime (客户端)
             byte[] combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
@@ -597,14 +597,13 @@ public class SPQS_Biginteger {
             // Step 2: 获取客户端的当前关键词状态
             int[] state = SC.get(p);
             // 客户端部分结束计时
-            long client_time2 = System.nanoTime();
+            long client_time_loop_end = System.nanoTime();
             // 若state为null，则跳出循环
             if (state == null) {
 //                exist = false;
 //                System.out.println("没有匹配:"+p+"的结果");
-                double msclient_time1 = (client_time2 - client_time1) / 1_000_000.0;
-                totalClientTime += msclient_time1;
-                totalServerTime += 0; // 没有进行服务器操作，因此设为0
+                totalClientTime += (client_time_loop_end - client_time_loop_start);
+                // 没有进行服务器操作，因此设为0
                 continue;
             }
             // Step 3: 检查状态是否为null
@@ -614,9 +613,10 @@ public class SPQS_Biginteger {
             int c0 = state[0];
             int c = state[1];
 
+            totalClientTime += (client_time_loop_end - client_time_loop_start);
 
             // 开始服务器部分计时
-            long server_time1 = System.nanoTime();
+            long server_time_loop_start = System.nanoTime();
 
             // Step 1: 检查 SS[Kw] 的状态 (服务器)
             // 如果不存在，则初始化为全0的BigInteger
@@ -631,26 +631,26 @@ public class SPQS_Biginteger {
                 byte[] I = hashFunction(Kp, Ri);
 
                 // Step 5: 从PDB中检索密文
-                Object[] ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
+                CipherText ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
 
                 // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
-                BigInteger ea = (BigInteger) ciphertext[1];
-                BigInteger eb = (BigInteger) ciphertext[2];
+                BigInteger ea = ciphertext.getEa();
+                BigInteger eb = ciphertext.getEb();
                 E.put(i - c0, new BigInteger[]{ea, eb});
 
                 // Step 7: 从PDB中移除该密文
                 PDB.remove(new String(I, StandardCharsets.UTF_8));
 
                 // Step 8: 更新Ri-1 = C ⊕ H2(Kw, Ri)
-                byte[] C = (byte[]) ciphertext[0];
+                byte[] C = ciphertext.getC();
                 Ri = new BigInteger(C).xor(new BigInteger(hashFunction(Kp, Ri))).intValue();
             }
 
             // 服务器部分结束计时
-            long server_time2 = System.nanoTime();
-
+            long server_time_loop_end = System.nanoTime();
+            totalServerTime += (server_time_loop_end - server_time_loop_start);
             // 开始客户端接收并处理部分计时
-            long client_time3 = System.nanoTime();
+//            long client_time_dec_start = System.nanoTime();
 
             // Step 1: 初始化匹配文件的位图 (客户端)
             BigInteger bsp = BigInteger.ZERO;
@@ -685,38 +685,26 @@ public class SPQS_Biginteger {
             ep = bsp.xor(new BigInteger(1, H5));
 
             // 客户端接收部分结束计时
-            long client_time4 = System.nanoTime();
+            long client_time_dec_end = System.nanoTime();
             // 记录结束时间并计算本次迭代的耗时
-            long loopEndTime = System.nanoTime();
-            long loopDurationNs = loopEndTime - loopStartTime;
-            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
+//            long loopEndTime = System.nanoTime();
+//            long loopDurationNs = loopEndTime - loopStartTime;
+//            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
 
-//            double loopDurationMs = loopDurationNs / 1_000_000.0;
+//            double loopDurationMs = loopDurationNs / 1e6;
             //System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
 
 
             // 服务器更新 SS
             SS.put(new String(Kp, StandardCharsets.UTF_8), ep);
-            // 输出客户端和服务器端的时间消耗
-            double msclient_time1 = (client_time2 - client_time1) / 1_000_000.0;
-            double msclient_time2 = (client_time4 - client_time3) / 1_000_000.0;
-            double msserver_time = (server_time2 - server_time1) / 1_000_000.0;
             // 累加客户端和服务器的时间
-            totalClientTime += msclient_time1 + msclient_time2;
-            totalServerTime += msserver_time;
-            double total_time = msclient_time1 + msclient_time2 + msserver_time;
-//            System.out.println("prefix encode: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
-
-//            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
+            totalClientTime += (client_time_dec_end - server_time_loop_end);
             Sump = Sump.or(bsp);
         }
-
         //存储w位图结果
         BigInteger Sumw = BigInteger.ZERO;
         // 客户端处理关键字集合
         for (String w : WQ) {
-            // 记录单次循环的开始时间
-            long loopStartTime = System.nanoTime();
             // 客户端部分计时
             long client_time1 = System.nanoTime();
 
@@ -734,9 +722,8 @@ public class SPQS_Biginteger {
             if (state == null) {
                 exist = false;
 //                System.out.println("没有匹配:"+w+"的结果");
-                double msclient_time1 = (client_time2 - client_time1) / 1_000_000.0;
-                totalClientTime += msclient_time1;
-                totalServerTime += 0; // 没有服务器操作
+                totalClientTime += (client_time2 - client_time1);
+                // 服务器耗时不增
                 break;
             }
             // Step 3: 检查状态是否为null
@@ -745,10 +732,10 @@ public class SPQS_Biginteger {
             int Rc = state[2];
             int c0 = state[0];
             int c = state[1];
-
+            totalClientTime += (client_time2 - client_time1);
 
             // 开始服务器部分计时
-            long server_time1 = System.nanoTime();
+            long server_time_loop_start = System.nanoTime();
 
             // Step 1: 检查 SS[Kw] 的状态 (服务器)
             // 如果不存在，则初始化为全0的BigInteger
@@ -763,26 +750,26 @@ public class SPQS_Biginteger {
                 byte[] I = hashFunction(Kw, Ri);
 
                 // Step 5: 从PDB中检索密文
-                Object[] ciphertext = KDB.get(new String(I, StandardCharsets.UTF_8));
+                CipherText ciphertext = KDB.get(new String(I, StandardCharsets.UTF_8));
 
                 // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
-                BigInteger ea = (BigInteger) ciphertext[1];
-                BigInteger eb = (BigInteger) ciphertext[2];
+                BigInteger ea = ciphertext.getEa();
+                BigInteger eb = ciphertext.getEb();
                 E.put(i - c0, new BigInteger[]{ea, eb});
 
                 // Step 7: 从PDB中移除该密文
                 KDB.remove(new String(I, StandardCharsets.UTF_8));
 
                 // Step 8: 更新Ri-1 = C ⊕ H2(Kw, Ri)
-                byte[] C = (byte[]) ciphertext[0];
+                byte[] C = ciphertext.getC();
                 Ri = new BigInteger(C).xor(new BigInteger(hashFunction(Kw, Ri))).intValue();
             }
 
             // 服务器部分结束计时
-            long server_time2 = System.nanoTime();
-
+            long server_time_loop_end = System.nanoTime();
+            totalServerTime += (server_time_loop_end - server_time_loop_start);
             // 开始客户端接收并处理部分计时
-            long client_time3 = System.nanoTime();
+//            long client_time3 = System.nanoTime();
 
             // Step 1: 初始化匹配文件的位图 (客户端)
             BigInteger bsw = BigInteger.ZERO;
@@ -818,43 +805,35 @@ public class SPQS_Biginteger {
             ew = bsw.xor(new BigInteger(1, H5));
 
             // 客户端接收部分结束计时
-            long client_time4 = System.nanoTime();
+            long client_time_dec_end = System.nanoTime();
             // 记录结束时间并计算本次迭代的耗时
-            long loopEndTime = System.nanoTime();
-            long loopDurationNs = loopEndTime - loopStartTime;
-            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
+//            long loopEndTime = System.nanoTime();
+//            long loopDurationNs = loopEndTime - loopStartTime;
+//            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
 
-//            double loopDurationMs = loopDurationNs / 1_000_000.0;
+//            double loopDurationMs = loopDurationNs / 1e6;
             //System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
 
             // 服务器更新 SS
             SS.put(new String(Kw, StandardCharsets.UTF_8), ew);
-            // 输出客户端和服务器端的时间消耗
-            double msclient_time1 = (client_time2 - client_time1) / 1_000_000.0;
-            double msclient_time2 = (client_time4 - client_time3) / 1_000_000.0;
-            double msserver_time = (server_time2 - server_time1) / 1_000_000.0;
             // 累加客户端和服务器的时间
-            totalClientTime += msclient_time1 + msclient_time2;
-            totalServerTime += msserver_time;
-            double total_time = msclient_time1 + msclient_time2 + msserver_time;
-//            System.out.println("keyword: Client time part 1: " + msclient_time1 + " ms, Client time part 2: " + msclient_time2 + " ms, Server time: " + msserver_time + " ms, Total time: " + total_time + " ms");
-
-//            System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
+            totalClientTime += (client_time_dec_end - server_time_loop_end);
             Sumw = Sumw.or(bsw);
         }
         // 将累计的客户端和服务器时间分别存储到列表中
-        clientSearchTimes.add(totalClientTime);
-        serverSearchTimes.add(totalServerTime);
-        if(!exist) return BigInteger.ZERO;
+        clientSearchTimes.add(totalClientTime / 1e6);
+        serverSearchTimes.add(totalServerTime / 1e6);
+        if (!exist) return BigInteger.ZERO;
         // 输出总耗时
-//        double totalLoopTimeMs = totalLoopTime / 1_000_000.0;
+//        double totalLoopTimeMs = totalLoopTime / 1e6;
 //        findIndexesOfOne(Sump);
 //        findIndexesOfOne(Sumw);
 //        System.out.println("Total loop time: " + totalLoopTime + " ns (" + totalLoopTimeMs + " ms).");
-//        System.out.println("SPQS_BITSET Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1_000_000.0)) + " ms).");
+//        System.out.println("SPQS_BITSET Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1e6)) + " ms).");
         return Sump.and(Sumw);
     }
-    public static Object[] GetRandomItem(int W_num,String FILE_PATH) throws IOException {
+
+    public static Object[] GetRandomItem(int W_num, String FILE_PATH) throws IOException {
         BufferedReader reader = new BufferedReader(new FileReader(FILE_PATH));
         String selectedRow = null;
         String line;
@@ -997,6 +976,7 @@ public class SPQS_Biginteger {
                 (byte) value
         };
     }
+
     // 获取更新操作的平均时间
     public double getAverageUpdateTime() {
         return totalUpdateTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
@@ -1011,6 +991,7 @@ public class SPQS_Biginteger {
     public double getAverageServerTime() {
         return serverSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
+
     public double getAverageSearchTime() {
         if (clientSearchTimes.size() != serverSearchTimes.size() || clientSearchTimes.isEmpty()) {
             System.out.println("列表大小不一致或者为空，无法计算平均搜索时间。");
@@ -1075,6 +1056,7 @@ public class SPQS_Biginteger {
             System.out.println("clientSearchTimes 或 serverSearchTimes 列表元素不足，无法移除最大值和最小值。");
         }
     }
+
     // 打印 update 和 search 的时间列表
     public void printTimes() {
         System.out.println("Update Times:");
@@ -1093,6 +1075,7 @@ public class SPQS_Biginteger {
         }
         System.out.println();
     }
+
     public void batchObjectUpdate(List<long[]> pSets, List<String[]> WList, List<int[]> filesList, int batchSize) throws Exception {
         int totalUpdates = pSets.size();
 
@@ -1111,6 +1094,7 @@ public class SPQS_Biginteger {
             System.out.println("Completed batch " + (i / batchSize + 1) + " of updates.");
         }
     }
+
     public static void main(String[] args) throws Exception {
         // 定义参数
         int maxFiles = 1 << 20; // 最大文件数，2^20
@@ -1133,7 +1117,7 @@ public class SPQS_Biginteger {
         // 填充对象数据
         for (int i = 0; i < numObjects; i++) {
             // 创建pSet (二维数据)
-            pSets[i][0] = random.nextInt(1<<(order-1));
+            pSets[i][0] = random.nextInt(1 << (order - 1));
             pSets[i][1] = pSets[i][0] + 1;
 
             // 创建关键词W
@@ -1173,7 +1157,7 @@ public class SPQS_Biginteger {
         for (int i = 0; i < numObjects; i++) {
             // 通过 Hilbert 曲线计算范围
             BigInteger pointHilbertIndex = spqs.hilbertCurve.index(pSets[i]);
-            System.out.println("Hilbert Index:"+pointHilbertIndex);
+            System.out.println("Hilbert Index:" + pointHilbertIndex);
             BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(100));
             BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(100));
 

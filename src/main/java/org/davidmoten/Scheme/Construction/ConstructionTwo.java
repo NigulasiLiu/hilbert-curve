@@ -269,6 +269,20 @@ public class ConstructionTwo {
     }
 
     private String xorStrings(String s1, String s2) {
+        // 检查是否有任一输入为 null
+        if (s1 == null && s2 == null) {
+            return null;  // 如果两者均为 null，返回 null
+        }
+        if (s1 == null) {
+            return s2;  // 如果 s1 为 null，返回 s2
+        }
+        if (s2 == null) {
+            return s1;  // 如果 s2 为 null，返回 s1
+        }
+        // 确保输入字符串长度一致
+        if (s1.length() != s2.length()) {
+            throw new IllegalArgumentException("输入的字符串长度必须相同");
+        }
         StringBuilder result = new StringBuilder();
         for (int i = 0; i < s1.length(); i++) {
             // 按位异或操作，将两个位串的对应位进行异或运算
@@ -352,14 +366,14 @@ public class ConstructionTwo {
             // 生成 PRF 密钥 Ki
             String Ki = generatePRF(Ks, ni.index);
 
-            // 生成 X 轴的标签 TAGXi
-            String TAGXi = generatePRF(Kx, ni.index);
+//            // 生成 X 轴的标签 TAGXi
+//            String TAGXi = generatePRF(Kx, ni.index);
 
             // 对 X 轴的节点进行加密处理并存储到 Ux
             if (Sx.containsKey(ni.index)) {
                 // 使用 BigInteger 处理label
                 String ei = encrypt(Ki, new BigInteger(BTx[ni.index].label), C, "homomorphic");
-                Ux.put(TAGXi, ei);
+                Ux.put(Integer.toString(ni.index), ei);
             }
 
             // 更新进度条
@@ -374,14 +388,14 @@ public class ConstructionTwo {
             // 生成 PRF 密钥 Ki
             String Ki = generatePRF(Ks, ni.index);
 
-            // 生成 Y 轴的标签 TAGYi
-            String TAGYi = generatePRF(Ky, ni.index);
+//            // 生成 Y 轴的标签 TAGYi
+//            String TAGYi = generatePRF(Ky, ni.index);
 
             // 对 Y 轴的节点进行加密处理并存储到 Uy
             if (Sy.containsKey(ni.index)) {
                 // 使用 BigInteger 处理label
                 String ei = encrypt(Ki, new BigInteger(BTy[ni.index].label), C_prime, "homomorphic");
-                Uy.put(TAGYi, ei);
+                Uy.put(Integer.toString(ni.index), ei);
             }
 
             // 更新进度条
@@ -447,24 +461,21 @@ public class ConstructionTwo {
         List<Node> xNodes = findMinimumCover(xRange, true);  // 找到最小覆盖节点
 
         // 构建 X 轴的搜索令牌
-        List<String> TAGX = new ArrayList<>();
-        for (Node ni : xNodes) {
-            String TAGXi = generatePRF(Kx, ni.index);  // 使用 X 轴的密钥
-            TAGX.add(TAGXi);
-        }
-
+//        List<String> TAGX = new ArrayList<>();
+//        for (Node ni : xNodes) {
+//            String TAGXi = generatePRF(Kx, ni.index);  // 使用 X 轴的密钥
+//            TAGX.add(TAGXi);
+//        }
         // 构建 Y 轴的二叉树并找到覆盖查询范围的最小节点
-//        Node[] BTy = buildBinaryTree(t);
         List<Node> yNodes = findMinimumCover(yRange, false);  // 找到最小覆盖节点
+//        // 构建 Y 轴的搜索令牌
+//        List<String> TAGY = new ArrayList<>();
+//        for (Node ni : yNodes) {
+//            String TAGYi = generatePRF(Ky, ni.index);  // 使用 Y 轴的密钥
+//            TAGY.add(TAGYi);
+//        }
 
-        // 构建 Y 轴的搜索令牌
-        List<String> TAGY = new ArrayList<>();
-        for (Node ni : yNodes) {
-            String TAGYi = generatePRF(Ky, ni.index);  // 使用 Y 轴的密钥
-            TAGY.add(TAGYi);
-        }
-
-        List<List<String>> ER = serverSearch(TAGX, TAGY);  // ER[0] 是 ei, ER[1] 是 ei_prime
+        List<List<String>> ER = serverSearch(xNodes, yNodes);  // ER[0] 是 ei, ER[1] 是 ei_prime
 
         // 初始化 Sx 和 Sy 为长度为 2^t 的全 0 字符串
         String Sx_result = "0".repeat((int) Math.pow(2, t));
@@ -509,13 +520,13 @@ public class ConstructionTwo {
     }
 
     // Server Search：服务器根据搜索令牌 (TAGX, TAGY) 返回加密结果
-    private List<List<String>> serverSearch(List<String> TAGX, List<String> TAGY) {
+    private List<List<String>> serverSearch(List<Node> XR, List<Node> YR) {
         List<String> ER_X = new ArrayList<>();
         List<String> ER_Y = new ArrayList<>();
 
         // 搜索 X 轴的加密数据 (ei)
-        for (String tagX : TAGX) {
-            String ei = Ux.get(tagX);
+        for (Node ni : XR) {
+            String ei = Ux.get(Integer.toString(ni.index));
             if (ei != null) {
                 ER_X.add(ei);
             } else {
@@ -524,8 +535,8 @@ public class ConstructionTwo {
         }
 
         // 搜索 Y 轴的加密数据 (ei_prime)
-        for (String tagY : TAGY) {
-            String ei_prime = Uy.get(tagY);
+        for (Node ni : YR) {
+            String ei_prime = Uy.get(Integer.toString(ni.index));
             if (ei_prime != null) {
                 ER_Y.add(ei_prime);
             } else {
@@ -660,36 +671,30 @@ public class ConstructionTwo {
             String[] parts = update.split(",");
             int nodeIndex = Integer.parseInt(parts[0]);  // TAGX
             String eU = parts[1];  // 旧的加密值
-            String eAlpha_tag = generatePRF(Kx, nodeIndex);
-            String eAlpha = Ux.get(eAlpha_tag);
+            String eAlpha = Ux.get(Integer.toString(nodeIndex));
             String new_eAlpha = xorStrings(eAlpha,eU);
-            Ux.put(eAlpha_tag, new_eAlpha);  // 更新或添加到 Ux
+            Ux.put(Integer.toString(nodeIndex), new_eAlpha);  // 更新或添加到 Ux
         }
         for(int nodeindex=(int) Math.pow(2, t)-1;nodeindex>=0;nodeindex--) {
-            String e2Alphaplus1_tag = generatePRF(Kx, 2*nodeindex+1);
-            String e2Alphaplus2_tag = generatePRF(Kx, 2*nodeindex+2);
-            String e2Alphaplus1 = Ux.get(e2Alphaplus1_tag);
-            String e2Alphaplus2 = Ux.get(e2Alphaplus2_tag);
+            String e2Alphaplus1 = Ux.get(Integer.toString(2*nodeindex+1));
+            String e2Alphaplus2 = Ux.get(Integer.toString(2*nodeindex+2));
             String new_eAlpha = xorStrings(e2Alphaplus1,e2Alphaplus2);
-            Ux.put(generatePRF(Kx, nodeindex), new_eAlpha);  // 更新或添加到 Ux
+            Ux.put(Integer.toString(nodeindex), new_eAlpha);  // 更新或添加到 Ux
         }
         // 更新 Uy
         for (String update : LUy) {
             String[] parts = update.split(",");
             int nodeIndex = Integer.parseInt(parts[0]);  // TAGY
             String eU = parts[1];  // 旧的加密值
-            String eAlpha_tag = generatePRF(Ky, nodeIndex);
-            String eAlpha = Uy.get(eAlpha_tag);
+            String eAlpha = Uy.get(Integer.toString(nodeIndex));
             String new_eAlpha = xorStrings(eAlpha,eU);
-            Uy.put(eAlpha_tag, new_eAlpha);  // 更新或添加到 Uy
+            Uy.put(Integer.toString(nodeIndex), new_eAlpha);  // 更新或添加到 Uy
         }
         for(int nodeindex=(int) Math.pow(2, t)-1;nodeindex>=0;nodeindex--) {
-            String e2Alphaplus1_tag = generatePRF(Ky, 2*nodeindex+1);
-            String e2Alphaplus2_tag = generatePRF(Ky, 2*nodeindex+2);
-            String e2Alphaplus1 = Uy.get(e2Alphaplus1_tag);
-            String e2Alphaplus2 = Uy.get(e2Alphaplus2_tag);
+            String e2Alphaplus1 = Uy.get(Integer.toString(2*nodeindex+1));
+            String e2Alphaplus2 = Uy.get(Integer.toString(2*nodeindex+2));
             String new_eAlpha = xorStrings(e2Alphaplus1,e2Alphaplus2);
-            Uy.put(generatePRF(Ky, nodeindex), new_eAlpha);  // 更新或添加到 Uy
+            Uy.put(Integer.toString(nodeindex), new_eAlpha);  // 更新或添加到 Uy
         }
     }
 
