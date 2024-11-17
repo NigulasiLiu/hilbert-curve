@@ -1004,6 +1004,13 @@ public class SPQS_Biginteger {
                 .average()
                 .orElse(0.0);
     }
+    public void clearUpdateTime(){
+        totalUpdateTimes.clear();
+    }
+    public void clearSearchTime(){
+        serverSearchTimes.clear();
+        clientSearchTimes.clear();
+    }
 
     public void removeExtremesUpdateTime() {
         if (totalUpdateTimes.size() > 2) { // 确保列表中至少有3个元素
@@ -1090,7 +1097,7 @@ public class SPQS_Biginteger {
             }
 
             // 清理已完成的批次（可以考虑清理缓存或触发GC等）
-            System.gc();
+            //System.gc();
             System.out.println("Completed batch " + (i / batchSize + 1) + " of updates.");
         }
     }

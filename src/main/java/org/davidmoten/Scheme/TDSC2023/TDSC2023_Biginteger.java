@@ -161,11 +161,12 @@ public class TDSC2023_Biginteger {
 //        System.out.println("BPC2:" + BinaryResults);
         return BinaryResults;
     }
+
     public List<String> preCover(BigInteger[][] Matrix) {
         //生成min到max的所有Bigint
-        BigInteger[] R = new BigInteger[Matrix.length*Matrix[0].length];
-        for(int i = 0; i < Matrix.length; i++) {
-            for(int j = 0; j < Matrix[0].length; j++) {
+        BigInteger[] R = new BigInteger[Matrix.length * Matrix[0].length];
+        for (int i = 0; i < Matrix.length; i++) {
+            for (int j = 0; j < Matrix[0].length; j++) {
                 R[i * Matrix[0].length + j] = Matrix[i][j];
             }
         }
@@ -179,6 +180,7 @@ public class TDSC2023_Biginteger {
 //        System.out.println("BPC2:" + BinaryResults);
         return BinaryResults;
     }
+
     private int getCounter(String input) {
         return T.getOrDefault(input, -1);
     }
@@ -233,7 +235,7 @@ public class TDSC2023_Biginteger {
             SumP = SumP.add(SumPe).mod(n);
             long server_loop_end = System.nanoTime();
             server_time_for_plus += (server_loop_end - client_loop_end);
-            System.out.print(p+":"+((server_loop_end - client_loop_end)/1e6)+"ms\n");
+            System.out.print(p + ":" + ((server_loop_end - client_loop_end) / 1e6) + "ms\n");
         }
         List<BigInteger> SumWList = new ArrayList<>();
         for (String w : WQ) {
@@ -277,9 +279,9 @@ public class TDSC2023_Biginteger {
             SumWList.add(SumWe);
             long server_loop_end = System.nanoTime();
             server_time_for_plus += (server_loop_end - client_loop_end);
-            System.out.print(w+":"+((server_loop_end - client_loop_end)/1e6)+"ms\n");
+            System.out.print(w + ":" + ((server_loop_end - client_loop_end) / 1e6) + "ms\n");
         }
-        if(!exist){
+        if (!exist) {
 //            long client_time_notexist = System.nanoTime();
             // 存储到列表中
             double msclient_time = (client_time2 - startTime + client_time_for_plus) / 1e6;
@@ -339,6 +341,7 @@ public class TDSC2023_Biginteger {
         serverSearchTimes.add(msserver_time);
         return BR;
     }
+
     // 更新操作
     public void update(long[] pSet, String[] W, String op, int[] files, int CounterLimits) throws Exception {
         byte[] combinedKey;
@@ -421,6 +424,7 @@ public class TDSC2023_Biginteger {
         totalUpdateTimes.add(totalLoopTimeMs);
 //        System.out.println("Update operation completed.");
     }
+
     public BigInteger Search(BigInteger[][] Matrix, String[] WQ) throws Exception {
         byte[] combinedKey;
         byte[] Kp = new byte[LAMBDA / 8];
@@ -469,7 +473,7 @@ public class TDSC2023_Biginteger {
             SumP = SumP.add(SumPe).mod(n);
             long server_loop_end = System.nanoTime();
             server_time_for_plus += (server_loop_end - client_loop_end);
-            System.out.print(p+":"+((server_loop_end - client_loop_end)/1e6)+"ms");
+//            System.out.print(p + ":" + ((server_loop_end - client_loop_end) / 1e6) + "ms");
         }
         List<BigInteger> SumWList = new ArrayList<>();
         for (String w : WQ) {
@@ -511,9 +515,9 @@ public class TDSC2023_Biginteger {
             SumWList.add(SumWe);
             long server_loop_end = System.nanoTime();
             server_time_for_plus += (server_loop_end - client_loop_end);
-            System.out.print(w+":"+((server_loop_end - client_loop_end)/1e6)+"ms");
+//            System.out.print(w + ":" + ((server_loop_end - client_loop_end) / 1e6) + "ms");
         }
-        if(!exist){
+        if (!exist) {
 //            long client_time_notexist = System.nanoTime();
             // 存储到列表中
             double msclient_time = (client_time2 - startTime + client_time_for_plus) / 1e6;
@@ -573,6 +577,7 @@ public class TDSC2023_Biginteger {
         serverSearchTimes.add(msserver_time);
         return BR;
     }
+
     /**
      * 伪随机函数 P'
      *
@@ -669,7 +674,13 @@ public class TDSC2023_Biginteger {
         // 返回pSet和W
         return new Object[]{id, pSet, W};
     }
-
+    public void clearUpdateTime(){
+        totalUpdateTimes.clear();
+    }
+    public void clearSearchTime(){
+        serverSearchTimes.clear();
+        clientSearchTimes.clear();
+    }
     public double getAverageSearchTime() {
         if (clientSearchTimes.size() != serverSearchTimes.size() || clientSearchTimes.isEmpty()) {
             System.out.println("列表大小不一致或者为空，无法计算平均搜索时间。");
@@ -750,32 +761,13 @@ public class TDSC2023_Biginteger {
         return serverSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
     }
 
-    // 打印 update 和 search 的时间列表
-    public void printTimes() {
-        System.out.println("Update Times:");
-        for (Double time : totalUpdateTimes) {
-            System.out.print(time + " ms ");
-        }
-        System.out.println();
-        System.out.println("Client Search Times:");
-        for (Double time : clientSearchTimes) {
-            System.out.print(time + " ms ");
-        }
-        System.out.println();
-        System.out.println("Server Search Times:");
-        for (Double time : serverSearchTimes) {
-            System.out.print(time + " ms ");
-        }
-        System.out.println();
-    }
-
 
     public static void main(String[] args) throws Exception {
         // 设置一些参数
         int securityParameter = 128; // 安全参数 λ
         int maxnums_w = 6; // 关键字数量
         int maxFiles = 1 << 20; // 最大文件数
-        int order = 17; // Hilbert curve 阶数
+        int order = 12; // Hilbert curve 阶数
         int dimension = 2; // 维度
 
         // 初始化 TDSC2023_Biginteger 实例
@@ -783,7 +775,7 @@ public class TDSC2023_Biginteger {
 
         // 创建随机生成器和一些测试数据
         Random random = new Random();
-        int numObjects = 1; // 插入5个对象进行测试
+        int numObjects = 2000; // 插入5个对象进行测试
         int rangePredicate = 10000;
 
         // 初始化测试对象的数据
@@ -807,13 +799,13 @@ public class TDSC2023_Biginteger {
         }
 
         // 打印插入的数据
-        System.out.println("即将插入的数据:");
-        for (int i = 0; i < numObjects; i++) {
-            System.out.println("Object " + (i + 1) + ":");
-            System.out.println("  pSet: " + Arrays.toString(pSets[i]));
-            System.out.println("  W: " + Arrays.toString(WSets[i]));
-            System.out.println("  File ID: " + Arrays.toString(fileSets[i]));
-        }
+//        System.out.println("即将插入的数据:");
+//        for (int i = 0; i < numObjects; i++) {
+//            System.out.println("Object " + (i + 1) + ":");
+//            System.out.println("  pSet: " + Arrays.toString(pSets[i]));
+//            System.out.println("  W: " + Arrays.toString(WSets[i]));
+//            System.out.println("  File ID: " + Arrays.toString(fileSets[i]));
+//        }
         // 执行update操作（插入数据）
         System.out.println("插入操作开始...");
 //        printMap(tdsc2023.T);
@@ -842,15 +834,15 @@ public class TDSC2023_Biginteger {
             return;
         }
         System.out.println("开始搜索...");
-        int div = 100 * (1<<5);
+        int div = 100;
         int edgeLength = 1 << order;
-        int xstart =random.nextInt(edgeLength*(div-searchEdgeLengthPer)/div);
-        int ystart =random.nextInt(edgeLength*(div-searchEdgeLengthPer)/div);
+        int xstart = random.nextInt(edgeLength * (div - searchEdgeLengthPer) / div);
+        int ystart = random.nextInt(edgeLength * (div - searchEdgeLengthPer) / div);
         int i1 = edgeLength * (searchEdgeLengthPer) / div;
         int xlen = i1;
         int ylen = i1;
         BigInteger[][] matrixToSearch = generateHilbertMatrix(tdsc2023.hilbertCurve,
-                xstart,ystart,xlen,ylen);            // 执行搜索操作
+                xstart, ystart, xlen, ylen);            // 执行搜索操作
         for (int i = 0; i < numObjects; i++) {
             // 通过 Hilbert 曲线计算范围
 //            BigInteger pointHilbertIndex = tdsc2023.hilbertCurve.index(pSets[i]);
@@ -862,7 +854,7 @@ public class TDSC2023_Biginteger {
 
             BigInteger result = tdsc2023.Search(matrixToSearch, WSets[random.nextInt(numObjects)]);
             // 打印搜索结果
-            System.out.println("\n搜索结果 (pSet " + Arrays.toString(pSets[i]) + "): ");
+//            System.out.println("\n搜索结果 (pSet " + Arrays.toString(pSets[i]) + "): ");
 //            findIndexesOfOne(result); // 打印出结果中的位图索引
         }
         System.out.println("搜索操作完成。");
@@ -874,6 +866,7 @@ public class TDSC2023_Biginteger {
 
 //        tdsc2023.printTimes();
     }
+
     public static void findIndexesOfOne(BigInteger number) {
         // 收集所有位索引
         List<Integer> indexes = new ArrayList<>();
@@ -902,14 +895,24 @@ public class TDSC2023_Biginteger {
             }
         }
     }
-    // 通用方法，用于打印任何类型的Map中的内容
-    public static <K, V> void printMap(Map<K, V> map) {
-        if (map != null) {
-            for (Map.Entry<K, V> entry : map.entrySet()) {
-                System.out.println(entry.getKey()+ ": " + entry.getValue());
-            }
-        } else {
-            System.out.println("Map is empty or not initialized.");
+
+    // 打印 update 和 search 的时间列表
+    public void printTimes() {
+        System.out.println("Update Times:");
+        for (Double time : totalUpdateTimes) {
+            System.out.print(time + " ms ");
         }
+        System.out.println();
+        System.out.println("Client Search Times:");
+        for (Double time : clientSearchTimes) {
+            System.out.print(time + " ms ");
+        }
+        System.out.println();
+        System.out.println("Server Search Times:");
+        for (Double time : serverSearchTimes) {
+            System.out.print(time + " ms ");
+        }
+        System.out.println();
     }
+
 }

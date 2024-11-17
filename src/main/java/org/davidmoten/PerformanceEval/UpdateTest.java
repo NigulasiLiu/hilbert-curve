@@ -9,7 +9,6 @@ import java.util.Random;
 
 public class UpdateTest {
     public static void main(String[] args) throws Exception {
-        DataSetAccess dataSetAccess = new DataSetAccess();
         //清除"最大耗时-最小耗时"对数,便于计算合理的平均值
         int delExtremValueTimes = 3;
 //        int updatetimes = 30;
@@ -18,6 +17,7 @@ public class UpdateTest {
         int rangePredicate = 20000;
         int[] maxfilesArray = {1 << 20};//20,1 << 18,1 << 16,1 << 14,1 << 12
         int[] hilbertOrders = {17};
+        DataSetAccess dataSetAccess = new DataSetAccess(hilbertOrders[0]);
 
         int edgeLength = 1 << hilbertOrders[0];
         int Wnum = 8000;
