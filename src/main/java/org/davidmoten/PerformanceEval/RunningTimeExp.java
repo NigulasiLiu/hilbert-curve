@@ -1,6 +1,6 @@
 //package org.davidmoten.PerformanceEval;
 //
-//import org.davidmoten.Scheme.SPQS.SPQS_Biginteger;
+//import org.davidmoten.Scheme.SPQS.RSKQ_Biginteger;
 //import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 //
 //import java.io.*;
@@ -19,7 +19,7 @@
 //        List<Integer> expTimesList = Arrays.asList(20, 40, 60, 80); // 实验次数
 //        List<Integer> maxfilesList = Arrays.asList(1 << 12, 1 << 14, 1 << 16, 1 << 18, 1 << 20); // 文件数量
 //        List<Integer> orderList = Arrays.asList(15, 16, 17); // Hilbert curve 级别
-//        List<String> schemes = Arrays.asList("SPQS_Biginteger", "TDSC2023_Biginteger");  // 待测试方案列表
+//        List<String> schemes = Arrays.asList("RSKQ_Biginteger", "TDSC2023_Biginteger");  // 待测试方案列表
 //
 //        // 遍历所有的 k 和 maxfiles 组合
 //        for (int k : kList) {
@@ -41,9 +41,9 @@
 //                                        + "_keywordsnum_" + k + "_rangelen_" + (2 * l) + "_exptimes_" + expTimes + ".txt";
 //                                try (PrintStream out = new PrintStream(Files.newOutputStream(Paths.get(fileName)))) {
 //                                    // 创建不同的方案对象并运行实验
-//                                    if (scheme.equals("SPQS_Biginteger")) {
-//                                        SPQS_Biginteger spqsBiginteger = new SPQS_Biginteger(maxfiles,order, 2);
-//                                        spqsBiginteger.setup(SPQS_Biginteger.LAMBDA, maxfiles);
+//                                    if (scheme.equals("RSKQ_Biginteger")) {
+//                                        RSKQ_Biginteger spqsBiginteger = new RSKQ_Biginteger(maxfiles,order, 2);
+//                                        spqsBiginteger.setup(RSKQ_Biginteger.LAMBDA, maxfiles);
 //                                        runExperiments(spqsBiginteger, k, l, expTimes, filepath, maxfiles, out,dirName);
 //                                    } else if (scheme.equals("TDSC2023_Biginteger")) {
 //                                        TDSC2023_Biginteger tdsc2023Biginteger = new TDSC2023_Biginteger(128, 200, maxfiles, order, 2);
@@ -65,7 +65,7 @@
 //    // 运行实验，适用于不同的方案对象
 //    private static void runExperiments(Object scheme, int k, int l, int expTimes, String filepath, int maxfiles, PrintStream out, String dirName) throws Exception {
 //        // 模拟从数据集中获取一项数据
-//        Object[] result = SPQS_Biginteger.GetRandomItem(12, filepath);
+//        Object[] result = RSKQ_Biginteger.GetRandomItem(12, filepath);
 //        if (result == null) {
 //            System.out.println("获取数据失败。");
 //            return;
@@ -82,8 +82,8 @@
 //        System.out.println();
 //
 //        // 进行一次update和search,不计算本次运行时间
-//        if (scheme instanceof SPQS_Biginteger) {
-//            SPQS_Biginteger spqsBiginteger = (SPQS_Biginteger) scheme;
+//        if (scheme instanceof RSKQ_Biginteger) {
+//            RSKQ_Biginteger spqsBiginteger = (RSKQ_Biginteger) scheme;
 //            spqsBiginteger.ObjectUpdate(pSet, W, "add", new int[]{1}, 200);
 //            BigInteger pointHilbertIndex = spqsBiginteger.hilbertCurve.index(pSet);
 //            BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(l));
@@ -109,8 +109,8 @@
 //            System.out.println("实验次数: " + (i + 1));
 //
 //            // 执行 Update
-//            if (scheme instanceof SPQS_Biginteger) {
-//                SPQS_Biginteger spqsBiginteger = (SPQS_Biginteger) scheme;
+//            if (scheme instanceof RSKQ_Biginteger) {
+//                RSKQ_Biginteger spqsBiginteger = (RSKQ_Biginteger) scheme;
 //                BigInteger pointHilbertIndex = spqsBiginteger.hilbertCurve.index(pSet);
 //                BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(l));
 //                BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(l));
@@ -131,8 +131,8 @@
 //        String searchFileName = dirName + "/" +  scheme + "_keywordsnum_" + k + "_rangelen_" + (2 * l) + "_exptimes_" + expTimes + "_search.txt";
 //        try (PrintStream searchOut = new PrintStream(Files.newOutputStream(Paths.get(searchFileName)))) {
 //            System.setOut(searchOut);
-//            if (scheme instanceof SPQS_Biginteger) {
-//                SPQS_Biginteger spqsBiginteger = (SPQS_Biginteger) scheme;
+//            if (scheme instanceof RSKQ_Biginteger) {
+//                RSKQ_Biginteger spqsBiginteger = (RSKQ_Biginteger) scheme;
 //                BigInteger pointHilbertIndex = spqsBiginteger.hilbertCurve.index(pSet);
 //                BigInteger R_min = pointHilbertIndex.subtract(BigInteger.valueOf(l));
 //                BigInteger R_max = pointHilbertIndex.add(BigInteger.valueOf(l));
@@ -146,8 +146,8 @@
 //            }
 //        }
 //    }
-//    // 执行 SPQS_Biginteger 方案的实验
-//    private static void runSPQSExperiment(SPQS_Biginteger spqsBiginteger, int[] files, long[] pSet, String[] W, BigInteger R_min, BigInteger R_max, String[] WQ) throws Exception {
+//    // 执行 RSKQ_Biginteger 方案的实验
+//    private static void runSPQSExperiment(RSKQ_Biginteger spqsBiginteger, int[] files, long[] pSet, String[] W, BigInteger R_min, BigInteger R_max, String[] WQ) throws Exception {
 //        // Add Update
 //        spqsBiginteger.ObjectUpdate(pSet, W, "add", files, 200);
 //        // Search
@@ -193,7 +193,7 @@
 //}
 //
 ////    public static void main(String[] args) throws Exception {
-////        SPQS_Biginteger spqs = new SPQS_Biginteger();
+////        RSKQ_Biginteger spqs = new RSKQ_Biginteger();
 ////        spqs.setup(LAMBDA, maxfiles);
 ////
 ////        // 初始化DSSE系统
@@ -218,7 +218,7 @@
 ////                System.out.println("实验次数: " + (i + 1));
 ////
 ////                // 模拟从数据集中获取一项数据
-////                Object[] result = SPQS_Biginteger.GetRandomItem(12);
+////                Object[] result = RSKQ_Biginteger.GetRandomItem(12);
 ////                if (result == null) {
 ////                    System.out.println("获取数据失败。");
 ////                    continue;
@@ -249,7 +249,7 @@
 ////                // 执行搜索操作
 ////                BigInteger BR = spqs.ObjectSearch(R_min, R_max, WQ);
 ////                // 返回最终解密后的位图信息 BR
-////                // SPQS_Biginteger.findIndexesOfOne(BR); // 替换为实际处理逻辑
+////                // RSKQ_Biginteger.findIndexesOfOne(BR); // 替换为实际处理逻辑
 ////
 ////                spqs.ObjectUpdate(pSet, W, "del", files, maxnums_w);
 ////

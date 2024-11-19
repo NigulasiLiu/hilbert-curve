@@ -4,7 +4,7 @@ import org.davidmoten.DataProcessor.DataSetAccess;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 import org.davidmoten.Scheme.Construction.ConstructionOne;
 import org.davidmoten.Scheme.Construction.ConstructionTwo;
-import org.davidmoten.Scheme.SPQS.SPQS_Biginteger;
+import org.davidmoten.Scheme.SPQS.RSKQ_Biginteger;
 import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 
 import java.math.BigInteger;
@@ -28,18 +28,18 @@ public class SearchTest {
         //清除"最大耗时-最小耗时"对数,便于计算合理的平均值
         int delupdatetimes = 0;
         //需要在内存中存储，所以需要插入updatetime个Object
-        int updatetimes = 16000;
+        int updatetimes = 400;
         int batchSize = 400; // 每次处理x个更新
         //数据集大小为 1 Million 个条目
         int objectnums = 1000000;
         //相同元素(关键字或者位置point)的最大数量为10W
         int rangePredicate = 100000;
         int[] maxfilesArray = {1 << 20};//20,1 << 18,1 << 16,1 << 14,1 << 12
-        int[] hilbertOrders = {17};
+        int[] hilbertOrders = {12};
 
         int edgeLength = 1 << hilbertOrders[0];
         int Wnum = 8000;
-        int attachedKeywords = 14;
+        int attachedKeywords = 12;
         String distributionType = "multi-gaussian";
 
         DataSetAccess dataSetAccess = new DataSetAccess(hilbertOrders[0]);
@@ -52,8 +52,8 @@ public class SearchTest {
         List<Double> consOneSearchTimes = new ArrayList<>();
         List<Double> consTwoSearchTimes = new ArrayList<>();
 
-        // 初始化 SPQS_Biginteger 和 TDSC2023_Biginteger 实例
-        SPQS_Biginteger spqs = new SPQS_Biginteger(maxfilesArray[0], hilbertOrders[0], 2);
+        // 初始化 RSKQ_Biginteger 和 TDSC2023_Biginteger 实例
+        RSKQ_Biginteger spqs = new RSKQ_Biginteger(maxfilesArray[0], hilbertOrders[0], 2);
         TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(128, rangePredicate, maxfilesArray[0], hilbertOrders[0], 2);
         // 初始化 ConstructionOne 实例
         int lambda = 128;
@@ -77,7 +77,7 @@ public class SearchTest {
             xCoordinates[i] = Math.toIntExact(dataSetAccess.pointDataSet[randomIndex][0]);
             yCoordinates[i] = Math.toIntExact(dataSetAccess.pointDataSet[randomIndex][1]);
             // 进行更新操作
-            spqs.ObjectUpdate(pSet, W, new String[]{"add"}, files, rangePredicate);
+            spqs.ObjectUpdate(pSet, W, new String[]{"add"}, files);
             tdsc2023.update(pSet, W, "add", files, rangePredicate);
             if ((i + 1) % batchSize == 0) {
                 //System.gc(); // 执行垃圾回收
@@ -138,8 +138,9 @@ public class SearchTest {
             // 执行 searchtimes 次循环
             for (int i = 0; i < searchtimes; i++) {
                 int indexToSearch = random.nextInt(objectnums);
-                long[] pSetQ = dataSetAccess.pointDataSet[indexToSearch];
-                String[] WQ = dataSetAccess.keywordItemSets[indexToSearch];
+//                long[] pSetQ = dataSetAccess.pointDataSet[indexToSearch];
+//                String[] WQ = dataSetAccess.keywordItemSets[indexToSearch];
+                String[] WQ = {};
 
                 // 执行搜索操作并记录时间
                 spqs.ObjectSearch(matrixToSearch, WQ);

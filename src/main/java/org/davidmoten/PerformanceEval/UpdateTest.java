@@ -1,11 +1,9 @@
 package org.davidmoten.PerformanceEval;
 
 import org.davidmoten.DataProcessor.DataSetAccess;
-import org.davidmoten.Scheme.SPQS.SPQS_Biginteger;
+import org.davidmoten.Scheme.SPQS.RSKQ_Biginteger;
 //import org.davidmoten.Scheme.TDSC2023.TDSC2023_BITSET;
 import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
-
-import java.util.Random;
 
 public class UpdateTest {
     public static void main(String[] args) throws Exception {
@@ -34,7 +32,7 @@ public class UpdateTest {
         for (int maxfiles : maxfilesArray) {
             //内层循环：遍历 hilbert orders 值
             for (int hilbertOrder : hilbertOrders) {
-                SPQS_Biginteger spqs = new SPQS_Biginteger(maxfiles, hilbertOrder, 2);
+                RSKQ_Biginteger spqs = new RSKQ_Biginteger(maxfiles, hilbertOrder, 2);
                 TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(128, rangePredicate, maxfiles, hilbertOrder, 2);
 
                 // spqs执行 update 操作
@@ -43,7 +41,7 @@ public class UpdateTest {
                     String[] W = dataSetAccess.keywordItemSets[i];
                     int[] files = new int[]{dataSetAccess.fileDataSet[i]};
                     // 进行更新操作
-                    spqs.ObjectUpdate(pSet, W, new String[]{"add"}, files, rangePredicate);
+                    spqs.ObjectUpdate(pSet, W, new String[]{"add"}, files);
                     tdsc2023.update(pSet, W, "add", files, rangePredicate);
                 }
 
@@ -62,7 +60,7 @@ public class UpdateTest {
             }
             for (int hilbertOrder : hilbertOrders) {
                 // 初始化 SPQS_BITSET 和 TDSC2023_BITSET 实例
-                SPQS_Biginteger spqs = new SPQS_Biginteger(maxfiles, hilbertOrder, 2);
+                RSKQ_Biginteger spqs = new RSKQ_Biginteger(maxfiles, hilbertOrder, 2);
                 TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(128, rangePredicate, maxfiles, hilbertOrder, 2);
 
                 // spqs执行 batch update 操作
@@ -73,7 +71,7 @@ public class UpdateTest {
                     files[0] =dataSetAccess.fileDataSet[i];//added file
                     files[1] =(files[0])%maxfilesArray[0];//del file
                     // 进行更新操作
-                    spqs.ObjectUpdate(pSet, W, new String[]{"add","del"}, files, rangePredicate);
+                    spqs.ObjectUpdate(pSet, W, new String[]{"add","del"}, files);
                     tdsc2023.update(pSet, W, "add", new int[]{files[0]}, rangePredicate);
                     tdsc2023.update(pSet, W, "del", new int[]{files[1]}, rangePredicate);
                 }

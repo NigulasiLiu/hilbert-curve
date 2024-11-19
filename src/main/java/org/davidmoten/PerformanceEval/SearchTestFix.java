@@ -1,6 +1,6 @@
 //package org.davidmoten.PerformanceEval;
 //
-//import org.davidmoten.Scheme.SPQS.SPQS_Biginteger;
+//import org.davidmoten.Scheme.SPQS.RSKQ_Biginteger;
 ////import org.davidmoten.Scheme.TDSC2023.TDSC2023_BITSET;
 //import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 //
@@ -47,7 +47,7 @@
 //                // 内层循环：遍历 hilbert orders 值
 //                for (int hilbertOrder : hilbertOrders) {
 //                    // 初始化 SPQS_BITSET 和 TDSC2023_BITSET 实例
-//                    SPQS_Biginteger spqs = new SPQS_Biginteger(maxfiles, hilbertOrder, 2);
+//                    RSKQ_Biginteger spqs = new RSKQ_Biginteger(maxfiles, hilbertOrder, 2);
 //                    TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(128, rangePredicate, maxfiles, hilbertOrder, 2);
 //                    int batchSize = 100; // 每次处理50个更新
 //                    // 执行 update 操作 (模拟多次操作获取平均时间)

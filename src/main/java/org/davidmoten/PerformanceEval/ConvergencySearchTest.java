@@ -4,14 +4,14 @@ import org.davidmoten.DataProcessor.DataSetAccess;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 import org.davidmoten.Scheme.Construction.ConstructionOne;
 import org.davidmoten.Scheme.Construction.ConstructionTwo;
-import org.davidmoten.Scheme.SPQS.SPQS_Biginteger;
+import org.davidmoten.Scheme.SPQS.RSKQ_Biginteger;
 import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 
 import java.math.BigInteger;
 import java.util.*;
 
 
-public class SearchTestOptimized {
+public class ConvergencySearchTest {
     public static BigInteger[][] generateHilbertMatrix(HilbertCurve hilbertCurve, int startX, int startY, int width, int height) {
         BigInteger[][] matrix = new BigInteger[width + 1][height + 1];
 
@@ -54,8 +54,8 @@ public class SearchTestOptimized {
         List<Double> spqsSearchTimes = new ArrayList<>();
         List<Double> tdscSearchTimes = new ArrayList<>();
 
-        // 初始化 SPQS_Biginteger 和 TDSC2023_Biginteger 实例
-        SPQS_Biginteger spqs = new SPQS_Biginteger(maxfilesArray[0], hilbertOrders[0], 2);
+        // 初始化 RSKQ_Biginteger 和 TDSC2023_Biginteger 实例
+        RSKQ_Biginteger spqs = new RSKQ_Biginteger(maxfilesArray[0], hilbertOrders[0], 2);
         TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(128, rangePredicate, maxfilesArray[0], hilbertOrders[0], 2);
         // 初始化 ConstructionOne 实例
         int lambda = 128;
@@ -81,7 +81,7 @@ public class SearchTestOptimized {
                 xCoordinates[i] = Math.toIntExact(dataSetAccess.pointDataSet[randomIndex][0]);
                 yCoordinates[i] = Math.toIntExact(dataSetAccess.pointDataSet[randomIndex][1]);
                 // 进行更新操作
-                spqs.ObjectUpdate(pSet, W, new String[]{"add"}, files, rangePredicate);
+                spqs.ObjectUpdate(pSet, W, new String[]{"add"}, files);
                 tdsc2023.update(pSet, W, "add", files, rangePredicate);
                 if ((i + 1) % batchSize == 0) {
                     //System.gc(); // 执行垃圾回收
