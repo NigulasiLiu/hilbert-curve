@@ -18,7 +18,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-import static org.davidmoten.PerformanceEval.SearchTest.generateHilbertMatrix;
+import static org.davidmoten.Experiment.Comparison.BRQComparison.generateHilbertMatrix;
+
 
 public class TDSC2023_Biginteger {
     // 列表用于存储 update 和 search 的时间

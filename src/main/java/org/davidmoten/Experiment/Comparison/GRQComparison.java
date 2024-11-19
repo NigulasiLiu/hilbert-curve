@@ -1,4 +1,4 @@
-package org.davidmoten.PerformanceEval;
+package org.davidmoten.Experiment.Comparison;
 
 import org.davidmoten.DataProcessor.DataSetAccess;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
@@ -25,14 +25,14 @@ public class GRQComparison {
         //清除"最大耗时-最小耗时"对数,便于计算合理的平均值
         int delupdatetimes = 1;
         //需要在内存中存储，所以需要插入updatetime个Object
-        int updatetimes = 40000;
-        int batchSize = 400; // 每次处理x个更新
+        int updatetimes = 100000;
+        int batchSize = 500; // 每次处理x个更新
         //数据集大小为 1 Million 个条目
         int objectnums = 1000000;
         //相同元素(关键字或者位置point)的最大数量为10W
         int rangePredicate = 100000;
         int[] maxfilesArray = {1 << 20};//20,1 << 18,1 << 16,1 << 14,1 << 12
-        int[] hilbertOrders = {15};
+        int[] hilbertOrders = {12};
 
         int edgeLength = 1 << hilbertOrders[0];
         int Wnum = 8000;
@@ -101,51 +101,74 @@ public class GRQComparison {
         }
 
         int div = 100;
-        int searchtimes = 3;
-        int searchEdgeLengthPer = 5;
 
         Scanner scanner = new Scanner(System.in);
-
         while (true) {
-            System.out.print("请输入总循环次数 totalSearchTimes (-1 退出): ");
-            int totalSearchTimes = scanner.nextInt();
+            System.out.print("\n请选择操作 (1: 搜索, 2: 打印键数量, -1: 退出): ");
+            int choice = scanner.nextInt();
 
-            if (totalSearchTimes == -1) {
+            if (choice == -1) {
                 System.out.println("程序已退出。");
                 break;
             }
 
-            if (totalSearchTimes <= 0) {
-                System.out.println("totalSearchTimes 必须是正整数，请重新输入。");
-                continue;
+            switch (choice) {
+                case 1: // 搜索操作
+                    System.out.print("请输入搜索次数 (正整数): ");
+                    int searchtimes = scanner.nextInt();
+
+                    if (searchtimes <= 0) {
+                        System.out.println("搜索次数必须是正整数。请重新选择操作。");
+                        continue;
+                    }
+
+                    System.out.print("请输入搜索范围 (0-100%): ");
+                    int searchEdgeLengthPer = scanner.nextInt();
+
+                    if (searchEdgeLengthPer <= 0 || searchEdgeLengthPer > 100) {
+                        System.out.println("搜索范围必须在 0 到 100 之间。请重新选择操作。");
+                        continue;
+                    }
+
+                    int xstart = random.nextInt(edgeLength * (div - searchEdgeLengthPer) / div);
+                    int ystart = random.nextInt(edgeLength * (div - searchEdgeLengthPer) / div);
+                    int searchRange = edgeLength * searchEdgeLengthPer / div;
+
+                    BigInteger[][] matrixToSearch = generateHilbertMatrix(
+                            spqs.hilbertCurve, xstart, ystart, searchRange, searchRange);
+
+                    for (int i = 0; i < searchtimes; i++) {
+                        spqs.GRQSearch(matrixToSearch);
+                        int[] rangex = con1.rangeConvert(t, new int[]{xstart, xstart + searchRange});
+                        int[] rangey = con1.rangeConvert(t, new int[]{ystart, ystart + searchRange});
+
+                        long startTime = System.nanoTime();
+                        con1.clientSearch(rangex, rangey, t);
+                        long endTime = System.nanoTime();
+                        consOneSearchTimes.add((endTime - startTime) / 1e6);
+                    }
+
+                    // 移除异常值
+                    for (int i = 0; i < delupdatetimes; i++) {
+                        spqs.removeExtremesSearchTime();
+                    }
+
+                    // 打印平均搜索时间
+                    System.out.printf("搜索完成，平均搜索时间:| RSKQ_Biginteger: |%-10.6f|ms | Cons-1: |%-10.6f|ms\n",
+                            spqs.getAverageSearchTime(),
+                            consOneSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0));
+                    break;
+
+                case 2: // 打印 PDB 和 KDB 键的数量
+                    int pdbKeyCount = spqs.PDB.size();
+                    int kdbKeyCount = spqs.KDB.size();
+                    System.out.printf("RSKQ PDB 键的数量: %d, KDB 键的数量: %d\n",
+                            pdbKeyCount, kdbKeyCount);
+                    break;
+
+                default:
+                    System.out.println("无效选项，请重新选择。");
             }
-
-            for (int currentRound = 1; currentRound <= totalSearchTimes; currentRound++) {
-                System.out.printf("第 %d/%d 次循环\n", currentRound, totalSearchTimes);
-                int xstart = random.nextInt(edgeLength * (div - searchEdgeLengthPer) / div);
-                int ystart = random.nextInt(edgeLength * (div - searchEdgeLengthPer) / div);
-                int searchRange = edgeLength * searchEdgeLengthPer / div;
-                BigInteger[][] matrixToSearch = generateHilbertMatrix(spqs.hilbertCurve, xstart, ystart, searchRange, searchRange);
-
-                for (int i = 0; i < searchtimes; i++) {
-                    spqs.GRQSearch(matrixToSearch);
-                    spqsSearchTimes.add(spqs.getAverageSearchTime());
-
-                    int[] rangex = con1.rangeConvert(t, new int[]{xstart, xstart + searchRange});
-                    int[] rangey = con1.rangeConvert(t, new int[]{ystart, ystart + searchRange});
-
-                    long startTime = System.nanoTime();
-                    con1.clientSearch(rangex, rangey, t);
-                    long endTime = System.nanoTime();
-                    consOneSearchTimes.add((endTime - startTime) / 1e6);
-                }
-                System.out.printf("avg:| SPQS: |%-10.6f|ms | Cons-1: |%-10.6f|ms\n",
-                        spqsSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0),
-                        consOneSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0));
-            }
-
-            spqsSearchTimes.clear();
-            consOneSearchTimes.clear();
         }
         scanner.close();
     }

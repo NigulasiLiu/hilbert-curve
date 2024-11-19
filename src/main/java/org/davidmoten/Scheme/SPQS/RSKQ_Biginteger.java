@@ -5,11 +5,7 @@ import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.davidmoten.BPC.BPCGenerator;
 import org.davidmoten.DataProcessor.DataSetAccess;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
-import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
@@ -24,7 +20,8 @@ import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import static org.davidmoten.PerformanceEval.SearchTest.generateHilbertMatrix;
+import static org.davidmoten.Experiment.Comparison.BRQComparison.generateHilbertMatrix;
+
 
 public class RSKQ_Biginteger {
     public ConcurrentHashMap<String, CipherText> PDB; // 服务器存储的密文数据库

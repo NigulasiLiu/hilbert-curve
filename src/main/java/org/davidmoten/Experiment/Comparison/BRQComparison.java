@@ -1,4 +1,4 @@
-package org.davidmoten.PerformanceEval;
+package org.davidmoten.Experiment.Comparison;
 
 import org.davidmoten.DataProcessor.DataSetAccess;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
@@ -7,8 +7,6 @@ import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 
 import java.math.BigInteger;
 import java.util.*;
-
-import static org.davidmoten.PerformanceEval.SearchTest.generateHilbertMatrix;
 
 
 public class BRQComparison {
@@ -85,7 +83,6 @@ public class BRQComparison {
 //        int searchEdgeLengthPer = 5;
 
         Scanner scanner = new Scanner(System.in);
-
         while (true) {
             System.out.print("\n请选择操作 (1: 搜索, 2: 打印键数量, -1: 退出): ");
             int choice = scanner.nextInt();
@@ -133,8 +130,8 @@ public class BRQComparison {
                     }
 
                     // 打印平均搜索时间
-                    System.out.printf("搜索完成，平均搜索时间: | RSKQ_Biginteger: |%-10.6f|ms\n",
-                            spqs.getAverageSearchTime());
+                    System.out.printf("搜索完成，平均搜索时间: | RSKQ_Biginteger: |%-10.6f|ms| TDSC2023_Biginteger: |%-10.6f|ms\n",
+                            spqs.getAverageSearchTime(),tdsc2023.getAverageSearchTime());
                     break;
 
                 case 2: // 打印 PDB 和 KDB 键的数量

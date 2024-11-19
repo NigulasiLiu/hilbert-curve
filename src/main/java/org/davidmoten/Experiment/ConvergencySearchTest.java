@@ -1,4 +1,4 @@
-package org.davidmoten.PerformanceEval;
+package org.davidmoten.Experiment;
 
 import org.davidmoten.DataProcessor.DataSetAccess;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;

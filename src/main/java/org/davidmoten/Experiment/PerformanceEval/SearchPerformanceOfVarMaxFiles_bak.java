@@ -1,7 +1,6 @@
-package org.davidmoten.PerformanceEval;
+package org.davidmoten.Experiment.PerformanceEval;
 
 import org.davidmoten.DataProcessor.DataSetAccess;
-import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 import org.davidmoten.Scheme.Construction.ConstructionOne;
 import org.davidmoten.Scheme.Construction.ConstructionTwo;
 import org.davidmoten.Scheme.SPQS.RSKQ_Biginteger;
@@ -10,19 +9,9 @@ import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 import java.math.BigInteger;
 import java.util.*;
 
+import static org.davidmoten.Experiment.Comparison.BRQComparison.generateHilbertMatrix;
 
-public class SearchTest {
-    public static BigInteger[][] generateHilbertMatrix(HilbertCurve hilbertCurve, int startX, int startY, int width, int height) {
-        BigInteger[][] matrix = new BigInteger[width + 1][height + 1];
-
-        for (int x = 0; x <= width; x++) {
-            for (int y = 0; y <= height; y++) {
-                matrix[x][y] = hilbertCurve.index(startX + x, startY + y);
-            }
-        }
-
-        return matrix;
-    }
+public class SearchPerformanceOfVarMaxFiles_bak {
 
     public static void main(String[] args) throws Exception {
         //清除"最大耗时-最小耗时"对数,便于计算合理的平均值

@@ -21,7 +21,8 @@ import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import static org.davidmoten.PerformanceEval.SearchTest.generateHilbertMatrix;
+import static org.davidmoten.Experiment.Comparison.BRQComparison.generateHilbertMatrix;
+
 
 public class SPQS_Biginteger {
     private ConcurrentHashMap<String, CipherText> PDB; // 服务器存储的密文数据库

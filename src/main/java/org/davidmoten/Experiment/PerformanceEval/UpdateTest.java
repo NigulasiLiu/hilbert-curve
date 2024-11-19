@@ -1,4 +1,4 @@
-package org.davidmoten.PerformanceEval;
+package org.davidmoten.Experiment.PerformanceEval;
 
 import org.davidmoten.DataProcessor.DataSetAccess;
 import org.davidmoten.Scheme.SPQS.RSKQ_Biginteger;

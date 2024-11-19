@@ -2,10 +2,12 @@ package org.davidmoten.Scheme.Construction;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
+import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -18,14 +20,15 @@ public class ConstructionOne {
     private int lambda; // 安全参数 λ
     private int t;
     // 初始化密钥
-    private int Ks;
-    private int Kx;
-    private int Ky;
-    private final BigInteger n = new BigInteger("100000");
+    private final byte[] Ks; // 主密钥
+    private final byte[] Kx; // x 轴密钥
+    private final byte[] Ky; // y 轴密钥
+    private final BigInteger n = new BigInteger("100000");//con-1中不需要加法同态加密
     private int N;  // 私有变量N
     private int[] xCoordinates;  // x坐标数组
     private int[] yCoordinates;  // y坐标数组
     private int C, C_prime;
+    private static final String PRF_ALGORITHM = "HmacSHA256";
 
     class Node {
         int index;
@@ -57,14 +60,53 @@ public class ConstructionOne {
         this.N = N;  // 初始化N
         this.xCoordinates = Arrays.copyOf(xCoordinates, N);  // 初始化x坐标数组
         this.yCoordinates = Arrays.copyOf(yCoordinates, N);  // 初始化y坐标数组
-        // 初始化密钥
-        Ks = prf.nextInt();  // 主密钥 Ks
-        Kx = prf.nextInt();  // x 轴的密钥
-        Ky = prf.nextInt();  // y 轴的密钥
+        SecureRandom secureRandom = new SecureRandom();
+        this.Ks = new byte[lambda / 8];
+        this.Kx = new byte[lambda / 8];
+        this.Ky = new byte[lambda / 8];
+        secureRandom.nextBytes(this.Ks);
+        secureRandom.nextBytes(this.Kx);
+        secureRandom.nextBytes(this.Ky);
+//        // 初始化密钥
+//        Ks = prf.nextInt();  // 主密钥 Ks
+//        Kx = prf.nextInt();  // x 轴的密钥
+//        Ky = prf.nextInt();  // y 轴的密钥
         this.C = 1;
         this.C_prime = 1;
     }
+    // 生成伪随机函数 (PRF) 输出
+    private byte[] generatePRF(byte[] key, byte[] input) {
+        try {
+            Mac mac = Mac.getInstance(PRF_ALGORITHM);
+            mac.init(new SecretKeySpec(key, PRF_ALGORITHM));
+            return Arrays.copyOf(mac.doFinal(input), lambda / 8); // 截取 128 位（16 字节）的输出
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate PRF output", e);
+        }
+    }
+    private byte[] generatePRF(byte[] key, int input) {
+        try {
+            Mac mac = Mac.getInstance(PRF_ALGORITHM);
+            mac.init(new SecretKeySpec(key, PRF_ALGORITHM));
 
+            // 将 int 转换为 byte[]
+            byte[] inputBytes = new byte[4];
+            inputBytes[0] = (byte) (input >> 24);
+            inputBytes[1] = (byte) (input >> 16);
+            inputBytes[2] = (byte) (input >> 8);
+            inputBytes[3] = (byte) input;
+
+            // 使用 PRF 计算结果
+            return Arrays.copyOf(mac.doFinal(inputBytes), lambda / 8); // 截取 128 位（16 字节）的输出
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to generate PRF output", e);
+        }
+    }
+    private String generatePRFValue(byte[] key, int nodeIndex) {
+        byte[] input = BigInteger.valueOf(nodeIndex).toByteArray(); // 将节点索引转换为 byte[]
+        byte[] prfOutput = generatePRF(key, input); // 计算 PRF
+        return Base64.getEncoder().encodeToString(prfOutput); // 返回 Base64 编码结果
+    }
     // 生成伪随机函数 (PRF) 输出
     private String generatePRF(int key, int nodeIndex) {
         prf.setSeed(key + nodeIndex);  // 使用 key 和节点索引作为种子
@@ -76,7 +118,7 @@ public class ConstructionOne {
         // 示例逻辑: (key + value) % n
         BigInteger encryptedValue = key.add(value).mod(n);
         return encryptedValue.toString();
-    }    // AES加密
+    }
     // 数字偏移加密方法，返回只包含数字的加密字符串
     private String aesEncrypt(String key, String data) throws Exception {
         // 将密钥转换为整数，用于生成偏移量
@@ -117,10 +159,8 @@ public class ConstructionOne {
 
     // 修改后的encrypt方法，使用BigInteger类型处理加密
     public String encrypt(String key, BigInteger index, int C, String type) throws Exception {
-        BigInteger bigKey = new BigInteger(key);  // 将key转换为BigInteger
-
         if ("homomorphic".equalsIgnoreCase(type)) {
-            // 使用同态加密
+            BigInteger bigKey = new BigInteger(key);  // 将key转换为BigInteger
             return homomorphicEncrypt(bigKey, index);
         } else if ("aes".equalsIgnoreCase(type)) {
             // 使用AES加密
@@ -155,7 +195,6 @@ public class ConstructionOne {
         int requiredLength = (int) Math.pow(2, t);
         return String.format("%0" + requiredLength + "d", new BigInteger(decrypted));
     }
-
 
     // 修改后的buildBinaryTree方法，返回Node[]数组
     public Node[] buildBinaryTree(int t) {
@@ -353,49 +392,40 @@ public class ConstructionOne {
     public void setupEDS(Map<Integer, String> Sx, Map<Integer, String> Sy) throws Exception {
         int totalSteps = BTx.length + BTy.length;
         int completedSteps = 0;
-
         // 处理 X 轴 (BTx)
         for (int i = 0; i < BTx.length; i++) {
             Node ni = BTx[i];
-
             // 生成 PRF 密钥 Ki
-            String Ki = generatePRF(Ks, ni.index);
-
+            String Ki = new String(generatePRF(Ks, ni.index), StandardCharsets.UTF_8);
             // 生成 X 轴的标签 TAGXi
-            String TAGXi = generatePRF(Kx, ni.index);
-
+            String TAGXi = new String(generatePRF(Kx, ni.index), StandardCharsets.UTF_8);
             // 对 X 轴的节点进行加密处理并存储到 Ux
             if (Sx.containsKey(ni.index)) {
                 // 使用 BigInteger 处理label
                 String ei = encrypt(Ki, new BigInteger(BTx[ni.index].label), C, "aes");
                 Ux.put(TAGXi, ei);
             }
-
             // 更新进度条
             completedSteps++;
-//            printProgress(completedSteps, totalSteps);
+            printProgress(completedSteps, totalSteps);
         }
 
         // 处理 Y 轴 (BTy)
         for (int i = 0; i < BTy.length; i++) {
             Node ni = BTy[i];
-
             // 生成 PRF 密钥 Ki
-            String Ki = generatePRF(Ks, ni.index);
-
+            String Ki = new String(generatePRF(Ks, ni.index), StandardCharsets.UTF_8);
             // 生成 Y 轴的标签 TAGYi
-            String TAGYi = generatePRF(Ky, ni.index);
-
+            String TAGYi = new String(generatePRF(Ky, ni.index), StandardCharsets.UTF_8);
             // 对 Y 轴的节点进行加密处理并存储到 Uy
             if (Sy.containsKey(ni.index)) {
                 // 使用 BigInteger 处理label
                 String ei = encrypt(Ki, new BigInteger(BTy[ni.index].label), C_prime, "aes");
                 Uy.put(TAGYi, ei);
             }
-
             // 更新进度条
             completedSteps++;
-//            printProgress(completedSteps, totalSteps);
+            printProgress(completedSteps, totalSteps);
         }
     }
 
@@ -424,27 +454,22 @@ public class ConstructionOne {
         }
     }
 
-
     // BuildKey: 生成以 ni 为根的子树中所有节点的密钥
-    public List<String> buildKey(Node ni, int Ks) {
+    public List<String> buildKey(Node ni, byte[] Ks) {
         List<String> keys = new ArrayList<>();
-
         // 递归生成子树中每个节点的密钥
         generateKeysForSubtree(ni, Ks, keys);
-
         return keys;  // 返回密钥集合
     }
 
     // 递归函数：遍历以 ni 为根的子树，并生成每个节点的密钥
-    private void generateKeysForSubtree(Node node, int Ks, List<String> keys) {
+    private void generateKeysForSubtree(Node node, byte[] Ks, List<String> keys) {
         if (node == null) {
             return;
         }
-
         // 生成当前节点的密钥 Kj = F(Ks, node.index)
-        String Kj = generatePRF(Ks, node.index);
+        String Kj = new String(generatePRF(Ks, node.index), StandardCharsets.UTF_8);
         keys.add(Kj);
-
         // 递归遍历左右子树
         generateKeysForSubtree(node.left, Ks, keys);
         generateKeysForSubtree(node.right, Ks, keys);
@@ -458,7 +483,7 @@ public class ConstructionOne {
         // 构建 X 轴的搜索令牌
         List<String> TAGX = new ArrayList<>();
         for (Node ni : xNodes) {
-            String TAGXi = generatePRF(Kx, ni.index);  // 使用 X 轴的密钥
+            String TAGXi = new String(generatePRF(Kx, ni.index), StandardCharsets.UTF_8);  // 使用 X 轴的密钥
             TAGX.add(TAGXi);
         }
 
@@ -469,7 +494,7 @@ public class ConstructionOne {
         // 构建 Y 轴的搜索令牌
         List<String> TAGY = new ArrayList<>();
         for (Node ni : yNodes) {
-            String TAGYi = generatePRF(Ky, ni.index);  // 使用 Y 轴的密钥
+            String TAGYi = new String(generatePRF(Ky, ni.index), StandardCharsets.UTF_8);  // 使用 Y 轴的密钥
             TAGY.add(TAGYi);
         }
 
@@ -610,11 +635,11 @@ public class ConstructionOne {
                 //System.out.println("After XOR - nAlpha.label: " + nAlpha.label);
 
                 // 生成标签
-                String TAGXAlpha = generatePRF(Kx, nAlpha.index);
+                String TAGXAlpha = new String(generatePRF(Kx, nAlpha.index), StandardCharsets.UTF_8);
                 //System.out.println("Generated TAGXAlpha: " + TAGXAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 生成加密密钥并加密
-                String KAlpha = generatePRF(Ks, nAlpha.index);
+                String KAlpha = new String(generatePRF(Ks, nAlpha.index), StandardCharsets.UTF_8);
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 进行加密
@@ -635,8 +660,8 @@ public class ConstructionOne {
                         BTx[beta].label = orStrings(BTx[nAlpha.index].label, BTx[nAlpha.index + 1].label);
                     }
                     // 更新父节点
-                    String TAGXBeta = generatePRF(Kx, beta);
-                    String KBeta = generatePRF(Ks, beta);
+                    String TAGXBeta = new String(generatePRF(Kx, beta), StandardCharsets.UTF_8);
+                    String KBeta = new String(generatePRF(Ks, beta), StandardCharsets.UTF_8);
                     String eUBeta = encrypt(KBeta, new BigInteger(BTx[beta].label), C, "aes");
                     // 添加到 LUx
                     LUx.add(TAGXBeta + "," + eUBeta);
@@ -658,11 +683,11 @@ public class ConstructionOne {
                 //System.out.println("After XOR - nAlpha.label: " + nAlpha.label);
 
                 // 生成标签
-                String TAGXAlpha = generatePRF(Ky, nAlpha.index);
+                String TAGXAlpha = new String(generatePRF(Ky, nAlpha.index), StandardCharsets.UTF_8);
                 //System.out.println("Generated TAGXAlpha: " + TAGXAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 生成加密密钥并加密
-                String KAlpha = generatePRF(Ks, nAlpha.index);
+                String KAlpha = new String(generatePRF(Ks, nAlpha.index), StandardCharsets.UTF_8);
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 进行加密
@@ -682,8 +707,8 @@ public class ConstructionOne {
                         BTy[beta].label = orStrings(BTy[nAlpha.index].label, BTy[nAlpha.index + 1].label);
                     }
                     // 更新父节点
-                    String TAGXBeta = generatePRF(Kx, beta);
-                    String KBeta = generatePRF(Ks, beta);
+                    String TAGXBeta = new String(generatePRF(Kx, beta), StandardCharsets.UTF_8);
+                    String KBeta = new String(generatePRF(Ks, beta), StandardCharsets.UTF_8);
                     String eUBeta = encrypt(KBeta, new BigInteger(BTy[beta].label), C_prime, "aes");
                     // 添加到 LUx
                     LUx.add(TAGXBeta + "," + eUBeta);
