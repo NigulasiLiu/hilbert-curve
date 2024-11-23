@@ -1,7 +1,7 @@
-package org.davidmoten.Experiment.PerformanceEval;
+package org.davidmoten.Experiment.UseDataAccessClass;
 
 import org.davidmoten.DataProcessor.DataSetAccess;
-import org.davidmoten.Scheme.SPQS.RSKQ_Biginteger;
+import org.davidmoten.Scheme.RSKQ.RSKQ_Biginteger;
 //import org.davidmoten.Scheme.TDSC2023.TDSC2023_BITSET;
 import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 

@@ -1,4 +1,4 @@
-package org.davidmoten.Scheme.SPQS;
+package org.davidmoten.Scheme.RSKQ;
 
 
 import org.bouncycastle.crypto.digests.Blake2bDigest;
@@ -14,18 +14,17 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import static org.davidmoten.Experiment.Comparison.BRQComparison.generateHilbertMatrix;
+import static org.davidmoten.Experiment.UseDataAccessClass.BRQComparisonInput.generateHilbertMatrix;
 
 
 public class RSKQ_Biginteger {
-    public ConcurrentHashMap<String, CipherText> PDB; // 服务器存储的密文数据库
-    public ConcurrentHashMap<String, CipherText> KDB; // 服务器存储的密文数据库
+    public ConcurrentHashMap<String, CipherTextBytes> PDB; // 服务器存储的密文数据库
+    public ConcurrentHashMap<String, CipherTextBytes> KDB; // 服务器存储的密文数据库
     // 列表用于存储 update 和 search 的时间
     public List<Double> totalUpdateTimes = new ArrayList<>();    // 存储 update 操作的总耗时
     public List<Double> clientSearchTimes = new ArrayList<>();   // 存储客户端 search 操作的时间
@@ -35,7 +34,7 @@ public class RSKQ_Biginteger {
     private final SecureRandom secureRandom; // 用于生成随机数
     private final MessageDigest messageDigest;
     private final byte[] intBuffer = new byte[4]; // 用于缓存int转byte的缓冲区
-    private HashMap<String, ClientState> SC;  // 客户端状态
+    private HashMap<String, ClientStateBytes> SC;  // 客户端状态
     private HashMap<String, BigInteger> SS;  // 服务器状态
 //    private ConcurrentHashMap<String, Object[]> PDB; // 服务器存储的密文数据库
 //    private ConcurrentHashMap<String, Object[]> KDB; // 服务器存储的密文数据库
@@ -44,9 +43,6 @@ public class RSKQ_Biginteger {
     private static final String HASH_ALGORITHM = "SHA-256";
     private static final String HMAC_ALGORITHM = "HmacSHA256";
 
-    // 预生成的随机数池
-    private final int[] randomPool;
-    private int poolIndex;
 
     //    private int maxnums_w; // 关键字最大数量
     //    private String filePath; // 数据集路径
@@ -54,7 +50,6 @@ public class RSKQ_Biginteger {
     private int dimension; // 2维数据
     private int order; // Hilbert curve 阶数
     public HilbertCurve hilbertCurve;
-    private BPCGenerator bpcGenerator;
 
     // 修改后的构造函数
     public RSKQ_Biginteger(int maxFiles, int order, int dimension) throws NoSuchAlgorithmException {
@@ -70,28 +65,7 @@ public class RSKQ_Biginteger {
         this.order = order;
         this.dimension = dimension;
         this.hilbertCurve = HilbertCurve.bits(order).dimensions(dimension);
-        this.bpcGenerator = new BPCGenerator(order * 2); // Hilbert曲线编码最大值为2^(2*order)
-        this.randomPool = new int[1<<(2*order + 1)];
-        this.poolIndex = 0;
         this.secureRandom = new SecureRandom(); // 初始化 SecureRandom 实例
-//        // 预生成随机数池
-//        fillRandomPool();
-    }
-
-    // 填充随机数池
-    private void fillRandomPool() {
-        for (int i = 0; i < randomPool.length; i++) {
-            randomPool[i] = ThreadLocalRandom.current().nextInt();
-        }
-    }
-
-    // 从随机数池中获取随机数
-    private int getRandomFromPool() {
-        if (poolIndex >= randomPool.length) {
-            poolIndex = 0;
-            fillRandomPool(); // 如果用完了，重新填充随机数池
-        }
-        return randomPool[poolIndex++];
     }
     // 生成长度为 λ 的随机数 Rc+1
     private byte[] generateRandomRc() {
@@ -103,44 +77,23 @@ public class RSKQ_Biginteger {
         // 计算点的 Hilbert 索引
         BigInteger pointHilbertIndex = this.hilbertCurve.index(pSet);
 
-        // 将 Hilbert 索引转换为二进制字符串，并确保其长度为 2 * order 位
-        String hilbertBinary = pointHilbertIndex.toString(2);
+        // 必要的长度为 2 * order 位
         int requiredLength = 2 * order;
 
-        // 如果二进制字符串长度不足，前面补0
-        hilbertBinary = String.format("%" + requiredLength + "s", hilbertBinary).replace(' ', '0');
+        // 获取 Hilbert 索引的二进制字符串，并补充前导零
+        String binaryString = String.format("%" + requiredLength + "s", pointHilbertIndex.toString(2)).replace(' ', '0');
 
+        // 初始化结果列表
+        List<String> prefixList = new ArrayList<>(requiredLength + 1);
 
-        List<String> prefixList = new ArrayList<>();
+        // 添加完整的二进制字符串
+        prefixList.add(binaryString);
 
-        // 从完整的前缀开始，逐步减少长度
-        for (int i = 0; i <= requiredLength; i++) {
-            String prefix = hilbertBinary.substring(0, requiredLength - i);
-            StringBuilder paddedPrefix = new StringBuilder(prefix);
-
-            // 使用循环来替代 .repeat() 功能
-            for (int j = 0; j < requiredLength - prefix.length(); j++) {
-                paddedPrefix.append('*');
-            }
-            prefixList.add(paddedPrefix.toString());
-        }
-
-        // 确保返回的 prefixList 包含 2 * order 个串
-        if (prefixList.size() < requiredLength + 1) {
-            // 添加足够数量的前缀串，直到数量达到 2 * order
-            for (int i = prefixList.size(); i <= requiredLength; i++) {
-                StringBuilder prefix = new StringBuilder();
-
-                // 构建前缀
-                for (int j = 0; j < i; j++) {
-                    prefix.append("");
-                }
-                // 构建后缀
-                for (int j = 0; j < requiredLength - i; j++) {
-                    prefix.append('*');
-                }
-                prefixList.add(prefix.toString());
-            }
+        // 从最后一个字符开始替换为 '*'，逐步生成前缀
+        StringBuilder builder = new StringBuilder(binaryString);
+        for (int i = binaryString.length() - 1; i >= 0; i--) {
+            builder.setCharAt(i, '*');
+            prefixList.add(builder.toString());
         }
 
         return prefixList;
@@ -152,16 +105,10 @@ public class RSKQ_Biginteger {
                 .limit(max.subtract(min).add(BigInteger.ONE).intValueExact())
                 .toArray(BigInteger[]::new);
 
-
-        List<BigInteger> results = this.bpcGenerator.GetBPCValueList(R);
-        List<String> BinaryResults = new ArrayList<>();
-//        System.out.println("BPC1: " + results);
-        for (BigInteger result : results) {
-            String bpc_string = this.bpcGenerator.toBinaryStringWithStars(result, order * 2, this.bpcGenerator.shiftCounts.get(result));
-            BinaryResults.add(bpc_string);
-        }
-//        System.out.println("BPC2:" + BinaryResults);
-        return BinaryResults;
+        // 获取BPC结果（包括分组）
+        Map<Integer, List<BigInteger>> resultMap = BPCGenerator.GetBPCValueMap(R, this.order*2);
+//        System.out.println("BPC:" + BPCGenerator.convertMapToPrefixString(resultMap,this.order*2));
+        return BPCGenerator.convertMapToPrefixString(resultMap,this.order*2);
     }
 
     public List<String> preCover(BigInteger[][] Matrix) {
@@ -170,15 +117,11 @@ public class RSKQ_Biginteger {
         for (int i = 0; i < Matrix.length; i++) {
             System.arraycopy(Matrix[i], 0, R, i * Matrix[0].length, Matrix[0].length);
         }
-        List<BigInteger> results = this.bpcGenerator.GetBPCValueList(R);
-        List<String> BinaryResults = new ArrayList<>();
-//        System.out.println("BPC1: " + results);
-        for (BigInteger result : results) {
-            String bpc_string = this.bpcGenerator.toBinaryStringWithStars(result, order * 2, this.bpcGenerator.shiftCounts.get(result));
-            BinaryResults.add(bpc_string);
-        }
-//        System.out.println("BPC2:" + BinaryResults);
-        return BinaryResults;
+
+        // 获取BPC结果（包括分组）
+        Map<Integer, List<BigInteger>> resultMap = BPCGenerator.GetBPCValueMap(R, this.order*2);
+//        System.out.println("BPC:" + BPCGenerator.convertMapToPrefixString(resultMap,this.order*2));
+        return BPCGenerator.convertMapToPrefixString(resultMap,this.order*2);
     }
 
     /**
@@ -220,7 +163,7 @@ public class RSKQ_Biginteger {
             System.arraycopy(combinedKey, LAMBDA / 8, Kp_prime, 0, LAMBDA / 8);
 
             // Step 2: 获取客户端的当前关键词状态
-            ClientState state = SC.get(p);
+            ClientStateBytes state = SC.get(p);
             // 客户端部分结束计时
             long client_time2 = System.nanoTime();
             // 若state为null，则跳出循环
@@ -257,7 +200,7 @@ public class RSKQ_Biginteger {
 
                 // Step 5: 从PDB中检索密文
 //                Object[] ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
-                CipherText ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
+                CipherTextBytes ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
 
                 // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
                 BigInteger ea = ciphertext.getEa();
@@ -306,7 +249,7 @@ public class RSKQ_Biginteger {
 
             // Step 10: 更新客户端状态
             byte[] Rc_plus_1 = generateRandomRc();
-            SC.put(p, new ClientState(c + 1, c, Rc_plus_1));
+            SC.put(p, new ClientStateBytes(c + 1, c, Rc_plus_1));
             // Step 11: 重新加密 bsw
             byte[] H5 = hashFunction(Kp_prime, c + 1);
             ep = bsp.xor(new BigInteger(1, H5));
@@ -355,7 +298,7 @@ public class RSKQ_Biginteger {
             System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
 
             // Step 2: 获取客户端的当前关键词状态
-            ClientState state = SC.get(w);
+            ClientStateBytes state = SC.get(w);
             // 客户端部分结束计时
             long client_time2 = System.nanoTime();
             if (state == null) {
@@ -389,7 +332,7 @@ public class RSKQ_Biginteger {
                 byte[] I = hashFunction(Kw, Ri);
 
                 // Step 5: 从PDB中检索密文
-                CipherText ciphertext = KDB.get(new String(I, StandardCharsets.UTF_8));
+                CipherTextBytes ciphertext = KDB.get(new String(I, StandardCharsets.UTF_8));
 
                 // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
                 BigInteger ea = ciphertext.getEa();
@@ -438,7 +381,7 @@ public class RSKQ_Biginteger {
 
             // Step 10: 更新客户端状态
             byte[] Rc_plus_1 = generateRandomRc();
-            SC.put(w, new ClientState(c + 1, c, Rc_plus_1));
+            SC.put(w, new ClientStateBytes(c + 1, c, Rc_plus_1));
             // Step 11: 重新加密 bsw
             byte[] H5 = hashFunction(Kw_prime, c + 1);
             ew = bsw.xor(new BigInteger(1, H5));
@@ -481,7 +424,7 @@ public class RSKQ_Biginteger {
         return Sump.and(Sumw);
     }
 
-    public void ObjectUpdate(long[] pSet, String[] W, String[] op, int[] files) throws Exception {
+    public double ObjectUpdate(long[] pSet, String[] W, String[] op, int[] files) throws Exception {
         byte[] combinedKey;
         byte[] Kw = new byte[LAMBDA / 8];
         byte[] Kw_prime = new byte[LAMBDA / 8];
@@ -493,7 +436,7 @@ public class RSKQ_Biginteger {
             System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
             System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
             // Step 2: 获取客户端的当前关键词状态
-            ClientState state = SC.getOrDefault(p, new ClientState(0, -1, generateRandomRc()));
+            ClientStateBytes state = SC.getOrDefault(p, new ClientStateBytes(0, -1, generateRandomRc()));
             // Step 3: 随机生成 Rc+1
             byte[] Rc_plus_1 = generateRandomRc();
             BitSet bitmap_a = new BitSet();
@@ -508,27 +451,20 @@ public class RSKQ_Biginteger {
             }
             byte[] hashKw_prime = hashFunction(Kw_prime, state.getC() + 1);
             // Step 7: 更新客户端状态
-            SC.put(p, new ClientState(state.getC0(), state.getC() + 1, Rc_plus_1));
+            SC.put(p, new ClientStateBytes(state.getC0(), state.getC() + 1, Rc_plus_1));
             //Server
             // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
             String key = new String(hashFunction(Kw, Rc_plus_1), StandardCharsets.UTF_8);
-            if (PDB.containsKey(key)) {
-                // 键已存在，打印日志说明
-                System.out.println("Key already exists in PDB: " + key);
-                System.out.println("p: " + p);
-//                System.out.print(findRIndexes(Rc_plus_1));
-            } else {
-                // 键不存在，执行 put 操作
-                PDB.put(key,
-                        new CipherText(
-                                xorBytes(hashFunction(Kw, Rc_plus_1), state.getRc()),
-                                new BigInteger(1, hashKw_prime).xor(new BigInteger(1, bitmap_a.toByteArray())),
-                                new BigInteger(1, hashKw_prime).xor(new BigInteger(1, bitmap_b.toByteArray()))
-                        )
-                );
-            }
+
+            PDB.put(key,
+                    new CipherTextBytes(
+                            xorBytes(hashFunction(Kw, Rc_plus_1), state.getRc()),
+                            new BigInteger(1, hashKw_prime).xor(new BigInteger(1, bitmap_a.toByteArray())),
+                            new BigInteger(1, hashKw_prime).xor(bitmap_b.isEmpty()? BigInteger.ZERO : new BigInteger(1,bitmap_b.toByteArray()))
+                    )
+            );
 //            PDB.put(new String(hashFunction(Kw, Rc_plus_1), StandardCharsets.UTF_8),
-//                    new CipherText(xorBytes(hashFunction(Kw, Rc_plus_1), intToBytes(state[2])),
+//                    new CipherTextBytes(xorBytes(hashFunction(Kw, Rc_plus_1), intToBytes(state[2])),
 //                    new BigInteger(1, xorBytes(hashKw_prime, bitmap_a.toByteArray())),
 //                    new BigInteger(1, xorBytes(hashKw_prime, bitmap_b.toByteArray()))));
         }
@@ -539,7 +475,7 @@ public class RSKQ_Biginteger {
             System.arraycopy(combinedKey, 0, Kw, 0, LAMBDA / 8);
             System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
             // Step 2: 获取客户端的当前关键词状态
-            ClientState state = SC.getOrDefault(w, new ClientState(0, -1, generateRandomRc()));
+            ClientStateBytes state = SC.getOrDefault(w, new ClientStateBytes(0, -1, generateRandomRc()));
             // Step 3: 随机生成 Rc+1
             byte[] Rc_plus_1 = generateRandomRc();
 
@@ -576,27 +512,34 @@ public class RSKQ_Biginteger {
             }
             byte[] hashKw_prime = hashFunction(Kw_prime, state.getC() + 1);
             // Step 7: 更新客户端状态
-            SC.put(w, new ClientState(state.getC0(), state.getC() + 1, Rc_plus_1));
+            SC.put(w, new ClientStateBytes(state.getC0(), state.getC() + 1, Rc_plus_1));
             //Server
             // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
             // 计算键值
             String key = new String(hashFunction(Kw, Rc_plus_1), StandardCharsets.UTF_8);
+
+            KDB.put(key,
+                    new CipherTextBytes(
+                            xorBytes(hashFunction(Kw, Rc_plus_1), state.getRc()),
+                            new BigInteger(1, hashKw_prime).xor(new BigInteger(1, bitmap_a.toByteArray())),
+                            new BigInteger(1, hashKw_prime).xor(bitmap_b.isEmpty()? BigInteger.ZERO : new BigInteger(1,bitmap_b.toByteArray()))
+                    )
+            );
             // 检查键是否已存在
-            if (KDB.containsKey(key)) {
-                // 键已存在，打印日志说明
-                System.out.println("Key already exists in KDB: " + key);
-                System.out.printf("W: %s | R: %d", w, Rc_plus_1);
-//                System.out.print(findRIndexes(Rc_plus_1));
-            } else {
-                // 键不存在，执行 put 操作
-                KDB.put(key,
-                        new CipherText(
-                                xorBytes(hashFunction(Kw, Rc_plus_1), state.getRc()),
-                                new BigInteger(1, hashKw_prime).xor(new BigInteger(1, bitmap_a.toByteArray())),
-                                new BigInteger(1, hashKw_prime).xor(new BigInteger(1, bitmap_b.toByteArray()))
-                        )
-                );
-            }
+//            if (KDB.containsKey(key)) {
+//                // 键已存在，打印日志说明
+////                System.out.println("Key already exists in KDB: " + key);
+////                System.out.print(findRIndexes(Rc_plus_1));
+//            } else {
+//                // 键不存在，执行 put 操作
+//                KDB.put(key,
+//                        new CipherTextBytes(
+//                                xorBytes(hashFunction(Kw, Rc_plus_1), state.getRc()),
+//                                new BigInteger(1, hashKw_prime).xor(new BigInteger(1, bitmap_a.toByteArray())),
+//                                new BigInteger(1, hashKw_prime).xor(bitmap_b.isEmpty()? BigInteger.ZERO : new BigInteger(1,bitmap_b.toByteArray()))
+//                        )
+//                );
+//            }
         }
         long wTime = System.nanoTime();
         // 输出总耗时
@@ -607,6 +550,7 @@ public class RSKQ_Biginteger {
         // 存储到列表中
         totalUpdateTimes.add(totalLoopTimeMs);
 //        System.out.println("Update operation completed.");
+        return totalLoopTimeMs;
     }
     public BigInteger ObjectSearch(BigInteger[][] Matrix, String[] WQ) throws Exception {
         long totalLoopTime = 0; // 初始化总时间变量
@@ -633,7 +577,7 @@ public class RSKQ_Biginteger {
             System.arraycopy(combinedKey, LAMBDA / 8, Kp_prime, 0, LAMBDA / 8);
 
             // Step 2: 获取客户端的当前关键词状态
-            ClientState state = SC.get(p);
+            ClientStateBytes state = SC.get(p);
             // 客户端部分结束计时
             long client_time_loop_end = System.nanoTime();
             // 若state为null，则跳出循环
@@ -676,7 +620,7 @@ public class RSKQ_Biginteger {
 //                System.out.print(findRIndexes(Rc_plus_1));
                 }
                 // Step 5: 从PDB中检索密文
-                CipherText ciphertext = PDB.get(keyI);
+                CipherTextBytes ciphertext = PDB.get(keyI);
 
                 // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
                 E.put(i - c0, new BigInteger[]{ciphertext.getEa(), ciphertext.getEb()});
@@ -718,7 +662,7 @@ public class RSKQ_Biginteger {
 
             // Step 10: 更新客户端状态
             byte[] Rc_plus_1 = generateRandomRc();
-            SC.put(p, new ClientState(c + 1, c, Rc_plus_1));
+            SC.put(p, new ClientStateBytes(c + 1, c, Rc_plus_1));
             // Step 11: 重新加密 bsw
             byte[] H5 = hashFunction(Kp_prime, c + 1);
             ep = bsp.xor(new BigInteger(1, H5));
@@ -746,7 +690,7 @@ public class RSKQ_Biginteger {
             System.arraycopy(combinedKey, LAMBDA / 8, Kw_prime, 0, LAMBDA / 8);
 
             // Step 2: 获取客户端的当前关键词状态
-            ClientState state = SC.get(w);
+            ClientStateBytes state = SC.get(w);
             // 客户端部分结束计时
             long client_time2 = System.nanoTime();
             if (state == null) {
@@ -779,7 +723,7 @@ public class RSKQ_Biginteger {
                 byte[] I = hashFunction(Kw, Ri);
 
                 // Step 5: 从PDB中检索密文
-                CipherText ciphertext = KDB.get(new String(I, StandardCharsets.UTF_8));
+                CipherTextBytes ciphertext = KDB.get(new String(I, StandardCharsets.UTF_8));
 
                 // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
                 BigInteger ea = ciphertext.getEa();
@@ -829,7 +773,7 @@ public class RSKQ_Biginteger {
 
             // Step 10: 更新客户端状态
             byte[] Rc_plus_1 = generateRandomRc();
-            SC.put(w, new ClientState(c + 1, c, Rc_plus_1));
+            SC.put(w, new ClientStateBytes(c + 1, c, Rc_plus_1));
             // Step 11: 重新加密 bsw
             byte[] H5 = hashFunction(Kw_prime, c + 1);
             ew = bsw.xor(new BigInteger(1, H5));
@@ -887,7 +831,7 @@ public class RSKQ_Biginteger {
             System.arraycopy(combinedKey, LAMBDA / 8, Kp_prime, 0, LAMBDA / 8);
 
             // Step 2: 获取客户端的当前关键词状态
-            ClientState state = SC.get(p);
+            ClientStateBytes state = SC.get(p);
             // 客户端部分结束计时
             long client_time_loop_end = System.nanoTime();
             // 若state为null，则跳出循环
@@ -919,16 +863,22 @@ public class RSKQ_Biginteger {
             // Step 3: 从c到c0进行循环 (服务器)
             for (int i = c; i >= c0; i--) {
                 // Step 4: 计算I
-                byte[] I = hashFunction(Kp, Ri);
-
+                String keyI = new String(hashFunction(Kp, Ri), StandardCharsets.UTF_8);
+                if (!PDB.containsKey(keyI)) {
+                    // 键已存在，打印日志说明
+                    System.out.println("Key does not exist in PDB: " + keyI);
+                    System.out.printf("p: %s |", p);
+                    continue;
+//                System.out.print(findRIndexes(Rc_plus_1));
+                }
                 // Step 5: 从PDB中检索密文
-                CipherText ciphertext = PDB.get(new String(I, StandardCharsets.UTF_8));
+                CipherTextBytes ciphertext = PDB.get(keyI);
 
                 // Step 6: 将检索到的密文存储在E中 (只存储ea和eb)
                 E.put(i - c0, new BigInteger[]{ciphertext.getEa(), ciphertext.getEb()});
 
                 // Step 7: 从PDB中移除该密文
-                PDB.remove(new String(I, StandardCharsets.UTF_8));
+                PDB.remove(keyI);
 
                 // Step 8: 更新Ri-1 = C ⊕ H2(Kw, Ri)
                 byte[] C = ciphertext.getC();
@@ -946,40 +896,24 @@ public class RSKQ_Biginteger {
 
             // Step 2-3: 解密ep (客户端)
             if (!ep.equals(BigInteger.ZERO)) {
-                BigInteger H5BigIntHash = new BigInteger(1, hashFunction(Kp_prime, c0));
-                bsp = ep.xor(H5BigIntHash);  // 执行异或操作
+                bsp = ep.xor(new BigInteger(1, hashFunction(Kp_prime, c0)));  // 执行异或操作
             }
 
             // Step 5: 循环解密每个密文并更新bsw (客户端)
             for (int i = c0; i <= c; i++) {
-                BigInteger ea = E.get(i - c0)[0];
-                BigInteger eb = E.get(i - c0)[1];
-
                 BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kp_prime, i));
 //                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
-                BigInteger bsa = ea.xor(hashKw_prime_H3);
-                BigInteger bsb = eb.xor(hashKw_prime_H3);
-
+                BigInteger bsa = E.get(i - c0)[0].xor(hashKw_prime_H3);
+                BigInteger bsb = E.get(i - c0)[1].xor(hashKw_prime_H3);
                 // 更新bsw,not按位取反，negate取负数
                 bsp = bsp.and(bsa.not()).xor(bsa.and(bsb));
             }
-
             // Step 10: 更新客户端状态
-            SC.put(p, new ClientState(c + 1, c, generateRandomRc()));
+            SC.put(p, new ClientStateBytes(c + 1, c, generateRandomRc()));
             // Step 11: 重新加密 bsw
             ep = bsp.xor(new BigInteger(1, hashFunction(Kp_prime, c + 1)));
-
             // 客户端接收部分结束计时
             long client_time_dec_end = System.nanoTime();
-            // 记录结束时间并计算本次迭代的耗时
-//            long loopEndTime = System.nanoTime();
-//            long loopDurationNs = loopEndTime - loopStartTime;
-//            totalLoopTime += loopDurationNs; // 累加每次迭代的时间
-
-//            double loopDurationMs = loopDurationNs / 1e6;
-            //System.out.println(" search took " + loopDurationNs + " ns (" + loopDurationMs + " ms).");
-
-
             // 服务器更新 SS
             SS.put(new String(Kp, StandardCharsets.UTF_8), ep);
             // 累加客户端和服务器的时间
@@ -1015,9 +949,6 @@ public class RSKQ_Biginteger {
         dataSetAccess.generatePoints(edgeLength, "multi-gaussian", objectnums);
 
         RSKQ_Biginteger spqsBitset = new RSKQ_Biginteger(maxfilesArray[0], hilbertOrders[0], 2);
-
-        // 初始化搜索耗时统计
-        List<Double> rskqSearchTimes = new ArrayList<>();
 
         // 随机数据生成器
         Random random = new Random();
@@ -1058,7 +989,6 @@ public class RSKQ_Biginteger {
                 System.out.println("程序已退出。");
                 break;
             }
-
             switch (choice) {
                 case 1: // 搜索操作
                     System.out.print("请输入搜索次数 (正整数): ");
@@ -1172,34 +1102,6 @@ public class RSKQ_Biginteger {
 //        }
 //        scanner.close();
     }
-    public static void findIndexesOfOne(BigInteger number) {
-        // 收集所有位索引
-        List<Integer> indexes = new ArrayList<>();
-        int index = 0;
-
-        // 遍历所有可能的位
-        while (number.signum() != 0) {
-            // 检查当前最低位是否为1
-            if (number.and(BigInteger.ONE).equals(BigInteger.ONE)) {
-                // 收集当前位的索引
-                indexes.add(index);
-            }
-
-            // 右移一位处理下一位
-            number = number.shiftRight(1);
-            index++;
-        }
-
-        // 打印结果
-        if (indexes.isEmpty()) {
-            System.out.println("没有找到1位。");
-        } else {
-            System.out.println("位图中1的位置索引为：");
-            for (Integer idx : indexes) {
-                System.out.println("索引: " + idx);
-            }
-        }
-    }
 
     /**
      * 伪随机函数 P'
@@ -1293,79 +1195,6 @@ public class RSKQ_Biginteger {
 
         // 保留 b 的多余部分，a 的内容被完全异或到 b 上
         return b;
-    }
-
-//    private byte[] xorBytes(byte[] a, byte[] b) {
-//        // 判断两个输入是否都是 128 位（16 字节）
-//        if (a.length != 16 || b.length != 16) {
-//            System.err.printf("Input byte arrays must both be 128 bits (16 bytes). Received lengths: a = %d, b = %d%n", a.length, b.length);
-//            throw new IllegalArgumentException("Invalid input lengths for xorBytes. Both inputs must be 128 bits.");
-//        }
-//
-//        // 创建结果数组，长度为 16 字节
-//        byte[] result = new byte[16];
-//
-//        // 遍历数组并计算异或
-//        for (int i = 0; i < 16; i++) {
-//            result[i] = (byte) (a[i] ^ b[i]);
-//        }
-//
-//        return result;
-//    }
-//    private byte[] xorBytes(byte[] a, byte[] b) {
-//        // 确定较长和较短的数组
-//        byte[] longer = a.length >= b.length ? a : b;
-//        byte[] shorter = a.length < b.length ? a : b;
-//
-//        // 创建结果数组，长度与较长数组相同
-//        byte[] result = new byte[longer.length];
-//
-//        // 遍历较长数组并计算异或
-//        for (int i = 0; i < longer.length; i++) {
-//            result[i] = (byte) (longer[i] ^ shorter[i % shorter.length]);
-//        }
-//
-//        return result;
-//    }
-
-
-//    public static byte[] xorByteArrays(byte[] a, byte[] b) {
-//        // 确定较长和较短的数组
-//        byte[] longer = a.length >= b.length ? a : b;
-//        byte[] shorter = a.length < b.length ? a : b;
-//
-//        // 创建结果数组，长度与较长数组相同
-//        byte[] result = new byte[longer.length];
-//
-//        // 计算偏移量，使短数组右对齐
-//        int offset = longer.length - shorter.length;
-//
-//        // 遍历较长数组并计算异或
-//        for (int i = 0; i < longer.length; i++) {
-//            if (i < offset) {
-//                // 填充高位为 0
-//                result[i] = longer[i];
-//            } else {
-//                // 对应位置异或
-//                result[i] = (byte) (longer[i] ^ shorter[i - offset]);
-//            }
-//        }
-//
-//        return result;
-//    }
-    /**
-     * 将整数转换为字节数组
-     *
-     * @param value 整数
-     * @return 字节数组
-     */
-    private byte[] intToBytes(int value) {
-        return new byte[]{
-                (byte) (value >> 24),
-                (byte) (value >> 16),
-                (byte) (value >> 8),
-                (byte) value
-        };
     }
     // 获取更新操作的平均时间
     public int getPDBSize() {
@@ -1461,58 +1290,6 @@ public class RSKQ_Biginteger {
         }
     }
 
-    // 打印 update 和 search 的时间列表
-    public void printTimes() {
-        System.out.println("Update Times:");
-        for (Double time : totalUpdateTimes) {
-            System.out.print(time + " ms ");
-        }
-        System.out.println();
-        System.out.println("Client Search Times:");
-        for (Double time : clientSearchTimes) {
-            System.out.print(time + " ms ");
-        }
-        System.out.println();
-        System.out.println("Server Search Times:");
-        for (Double time : serverSearchTimes) {
-            System.out.print(time + " ms ");
-        }
-        System.out.println();
-    }
-
-    public void batchObjectUpdate(List<long[]> pSets, List<String[]> WList, List<int[]> filesList, int batchSize) throws Exception {
-        int totalUpdates = pSets.size();
-
-        for (int i = 0; i < totalUpdates; i += batchSize) {
-            // 每次处理一个批次
-            int end = Math.min(i + batchSize, totalUpdates);
-            for (int j = i; j < end; j++) {
-                long[] pSet = pSets.get(j);
-                String[] W = WList.get(j);
-                int[] files = filesList.get(j);
-                ObjectUpdate(pSet, W, new String[]{"add"}, files);
-            }
-
-            // 清理已完成的批次（可以考虑清理缓存或触发GC等）
-            //System.gc();
-            System.out.println("Completed batch " + (i / batchSize + 1) + " of updates.");
-        }
-    }
-    /**
-     * 查找 randomPool 中所有等于 R 的索引
-     *
-     * @param R 要查找的值
-     * @return 所有等于 R 的索引列表
-     */
-    public List<Integer> findRIndexes(int R) {
-        List<Integer> indexes = new ArrayList<>();
-        for (int i = 0; i < randomPool.length; i++) {
-            if (randomPool[i] == R) {
-                indexes.add(i);
-            }
-        }
-        return indexes;
-    }
     //    public static void main(String[] args) throws Exception {
 //        // 定义参数
 //        int maxFiles = 1 << 20; // 最大文件数，2^20

@@ -1,34 +1,30 @@
-package org.davidmoten.Experiment.Comparison;
+package org.davidmoten.Experiment.UseDataAccessClass;
 
 import org.davidmoten.DataProcessor.DataSetAccess;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
-import org.davidmoten.Scheme.SPQS.RSKQ_Biginteger;
-import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
+import org.davidmoten.Scheme.Construction.ConstructionOne;
+import org.davidmoten.Scheme.RSKQ.RSKQ_Biginteger;
 
 import java.math.BigInteger;
 import java.util.*;
 
 
-public class BRQComparison {
+public class GRQComparison {
     public static BigInteger[][] generateHilbertMatrix(HilbertCurve hilbertCurve, int startX, int startY, int width, int height) {
-        BigInteger[][] matrix = new BigInteger[width + 1][height + 1];
+        BigInteger[][] matrix = new BigInteger[width][height];
 
-        for (int x = 0; x <= width; x++) {
-            for (int y = 0; y <= height; y++) {
+        for (int x = 0; x < width; x++) {
+            for (int y = 0; y < height; y++) {
                 matrix[x][y] = hilbertCurve.index(startX + x, startY + y);
             }
         }
-
         return matrix;
     }
 
     public static void main(String[] args) throws Exception {
-        //清除"最大耗时-最小耗时"对数,便于计算合理的平均值
-        int delupdatetimes = 1;
         //需要在内存中存储，所以需要插入updatetime个Object
         int updatetimes = 100000;
         int batchSize = 500; // 每次处理x个更新
-        //数据集大小为 1 Million 个条目
         int objectnums = 1000000;
         //相同元素(关键字或者位置point)的最大数量为10W
         int rangePredicate = 100000;
@@ -46,11 +42,18 @@ public class BRQComparison {
         dataSetAccess.generatePoints(edgeLength, distributionType, objectnums);
 
         List<Double> spqsSearchTimes = new ArrayList<>();
-        List<Double> tdscSearchTimes = new ArrayList<>();
+        List<Double> consOneSearchTimes = new ArrayList<>();
 
         // 初始化 RSKQ_Biginteger 和 TDSC2023_Biginteger 实例
         RSKQ_Biginteger spqs = new RSKQ_Biginteger(maxfilesArray[0], hilbertOrders[0], 2);
-        TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(128, rangePredicate, maxfilesArray[0], hilbertOrders[0], 2);
+
+        int lambda = 128;
+        // 确定合理的 t 值，根据最大边界来设置
+        int maxCoordinate = 1 << hilbertOrders[0]; // 假设 0 <= x, y <= (1 << 17)
+        int t = (int) (Math.log(maxCoordinate) / Math.log(2));
+        // 分离 x 和 y 坐标
+        int[] xCoordinates = new int[updatetimes];
+        int[] yCoordinates = new int[updatetimes];
 
         Random random = new Random();
         for (int i = 0; i < updatetimes; i++) {
@@ -59,28 +62,37 @@ public class BRQComparison {
             long[] pSet = dataSetAccess.pointDataSet[randomIndex];
             String[] W = dataSetAccess.keywordItemSets[randomIndex];
             int[] files = new int[]{dataSetAccess.fileDataSet[randomIndex]};
+            xCoordinates[i] = Math.toIntExact(dataSetAccess.pointDataSet[randomIndex][0]);
+            yCoordinates[i] = Math.toIntExact(dataSetAccess.pointDataSet[randomIndex][1]);
             // 进行更新操作
             spqs.ObjectUpdate(pSet, W, new String[]{"add"}, files);
-            tdsc2023.update(pSet, W, "add", files, rangePredicate);
             if ((i + 1) % batchSize == 0) {
                 //System.gc(); // 执行垃圾回收
                 System.out.println("Completed batch " + (i + 1) / batchSize + " of updates.");
-                // 打印平均搜索时间
-                System.out.printf("Update完成，平均更新时间: | RSKQ_Biginteger: |%-10.6f|ms| TDSC2023_Biginteger: |%-10.6f|ms\n",
-                        spqs.getAverageUpdateTime(),tdsc2023.getAverageUpdateTime());
             }
         }
 
-        // 移除初始的异常值
-        for (int i = 0; i < delupdatetimes; i++) {
-//            spqs.removeExtremesUpdateTime(); // 移除SPQS的异常更新时间
-//            tdsc2023.removeExtremesUpdateTime(); // 移除TDSC2023的异常更新时间
-            spqs.totalUpdateTimes.clear();
-            tdsc2023.totalUpdateTimes.clear();
-        }
+        // 清空 dataSetAccess 引用以释放内存
+        dataSetAccess = null;
+        System.gc(); // 提示 JVM 垃圾回收
+
+        //初始化ConstructionOne/Two
+        ConstructionOne con1 = new ConstructionOne(lambda, t, updatetimes, xCoordinates, yCoordinates);
+//        ConstructionTwo con2 = new ConstructionTwo(lambda, t, updatetimes, xCoordinates, yCoordinates);
+
+        // 构建con1,con2二叉树和倒排索引
+        con1.BTx = con1.buildBinaryTree(t);
+        con1.BTy = con1.buildBinaryTree(t);
+        Map<Integer, String> Sx = con1.buildxNodeInvertedIndex(con1.buildInvertedIndex(t, updatetimes, xCoordinates), t);
+        Map<Integer, String> Sy = con1.buildyNodeInvertedIndex(con1.buildInvertedIndex(t, updatetimes, yCoordinates), t);
+        con1.setupEDS(Sx, Sy);
+//        con2.BTx = con2.buildBinaryTree(t);
+//        con2.BTy = con2.buildBinaryTree(t);
+//        Map<Integer, String> Sx_2 = con2.buildxNodeInvertedIndex(con2.buildInvertedIndex(t, updatetimes, xCoordinates), t);
+//        Map<Integer, String> Sy_2 = con2.buildyNodeInvertedIndex(con2.buildInvertedIndex(t, updatetimes, yCoordinates), t);
+//        con2.setupEDS(Sx_2, Sy_2);
+
         int div = 100;
-//        int searchtimes = 5;
-//        int searchEdgeLengthPer = 5;
 
         Scanner scanner = new Scanner(System.in);
         while (true) {
@@ -118,28 +130,26 @@ public class BRQComparison {
                             spqs.hilbertCurve, xstart, ystart, searchRange, searchRange);
 
                     for (int i = 0; i < searchtimes; i++) {
-                        int indexToSearch = random.nextInt(objectnums);
-                        String[] WQ = dataSetAccess.keywordItemSets[indexToSearch];
-
-                        spqs.ObjectSearch(matrixToSearch, WQ);
-                    }
-
-                    // 移除异常值
-                    for (int i = 0; i < delupdatetimes; i++) {
-                        spqs.removeExtremesSearchTime();
+                        spqs.GRQSearch(matrixToSearch);
+                        int[] rangex = con1.rangeConvert(t, new int[]{xstart, xstart + searchRange});
+                        int[] rangey = con1.rangeConvert(t, new int[]{ystart, ystart + searchRange});
+                        long startTime = System.nanoTime();
+                        con1.clientSearch(rangex, rangey, t);
+                        long endTime = System.nanoTime();
+                        consOneSearchTimes.add((endTime - startTime) / 1e6);
                     }
 
                     // 打印平均搜索时间
-                    System.out.printf("搜索完成，平均搜索时间: | RSKQ_Biginteger: |%-10.6f|ms| TDSC2023_Biginteger: |%-10.6f|ms\n",
-                            spqs.getAverageSearchTime(),tdsc2023.getAverageSearchTime());
+                    System.out.printf("搜索完成，平均搜索时间:| RSKQ_Biginteger: |%-10.6f|ms | Cons-1: |%-10.6f|ms\n",
+                            spqs.getAverageSearchTime(),
+                            consOneSearchTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0));
                     break;
 
                 case 2: // 打印 PDB 和 KDB 键的数量
                     int pdbKeyCount = spqs.PDB.size();
                     int kdbKeyCount = spqs.KDB.size();
-                    System.out.printf("RSKQ PDB 键的数量: %d, KDB 键的数量: %d|TDSC PDB 键的数量: %d, KDB 键的数量: %d\n",
-                            pdbKeyCount, kdbKeyCount,
-                            tdsc2023.PDB.size(),tdsc2023.KDB.size());
+                    System.out.printf("RSKQ PDB 键的数量: %d, KDB 键的数量: %d\n",
+                            pdbKeyCount, kdbKeyCount);
                     break;
 
                 default:

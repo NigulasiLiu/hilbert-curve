@@ -1,18 +1,17 @@
-package org.davidmoten.Scheme.TDSC2023;
+package org.davidmoten.Scheme.TDSC2023.DPRF;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.Key;
-import java.util.Base64;
 
-public class DPRF {
+public class DPRF_Simplify {
 
     private static final String HMAC_SHA256 = "HmacSHA256";
     private final int c_max;  // 定义最大范围 c_max
 
     // 构造函数，接受最大范围 c_max
-    public DPRF(int c_max) {
+    public DPRF_Simplify(int c_max) {
         this.c_max = c_max;
     }
 
@@ -84,8 +83,8 @@ public class DPRF {
 //    public static void main(String[] args) throws Exception {
 //        int c_max = 200;  // 自定义最大范围 c_max 为 200
 //
-//        // 创建 DPRF 实例，设置最大范围 c_max
-//        DPRF dprf = new DPRF(c_max);
+//        // 创建 DPRF_Simplify 实例，设置最大范围 c_max
+//        DPRF_Simplify dprf = new DPRF_Simplify(c_max);
 //
 //        // 测试过程：Derive -> DelKey -> Derive
 //        String K = "SomeKey";

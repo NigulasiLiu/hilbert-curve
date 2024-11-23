@@ -1,14 +1,14 @@
-package org.davidmoten.Scheme.SPQS;
+package org.davidmoten.Scheme.RSKQ;
 
 import java.util.Arrays;
 
-public class ClientState {
+public class ClientStateBytes {
     private int c0;       // 起始计数器
     private int c;        // 当前计数器
     private byte[] Rc;    // 随机数 Rc+1
 
     // 构造函数
-    public ClientState(int c0, int c, byte[] Rc) {
+    public ClientStateBytes(int c0, int c, byte[] Rc) {
         this.c0 = c0;
         this.c = c;
         this.Rc = Rc;
@@ -41,7 +41,7 @@ public class ClientState {
 
     @Override
     public String toString() {
-        return "ClientState{" +
+        return "ClientStateBytes{" +
                 "c0=" + c0 +
                 ", c=" + c +
                 ", Rc=" + Arrays.toString(Rc) +
