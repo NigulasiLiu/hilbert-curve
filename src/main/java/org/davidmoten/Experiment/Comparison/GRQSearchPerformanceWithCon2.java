@@ -1,6 +1,5 @@
 package org.davidmoten.Experiment.Comparison;
 
-import org.davidmoten.Scheme.Construction.ConstructionOne;
 import org.davidmoten.Scheme.Construction.ConstructionTwo;
 import org.davidmoten.Scheme.RSKQ.RSKQ_Biginteger;
 
@@ -12,10 +11,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-import static org.davidmoten.Experiment.PerformanceEval.UpdatePerformance.printProgressBar;
 import static org.davidmoten.Experiment.UseDataAccessClass.BRQComparisonInput.generateHilbertMatrix;
 
-public class GRQSearchPerformance2 {
+public class GRQSearchPerformanceWithCon2 {
 
     public static void main(String[] args) throws Exception {
         String filepath = "src/dataset/spatial_data_for_update.csv";
@@ -90,7 +88,7 @@ public class GRQSearchPerformance2 {
                     yCoordinates[i] = Math.toIntExact(row.pointY);
 
 //                    // 更新进度条
-                    printProgressBar(i, dataRows.size());
+//                    printProgressBar(i, dataRows.size());
                 }
                 //初始化实例ConsOne
                 ConstructionTwo con2 = new ConstructionTwo(lambda, t, dataRows.size(), xCoordinates, yCoordinates);

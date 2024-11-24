@@ -121,7 +121,7 @@ public class UpdatePerformance {
                         rowCount++;
 
                         // 更新进度条
-                        printProgressBar(rowCount, totalLines);
+//                        printProgressBar(rowCount, totalLines);
                     }
                 }
                 System.out.printf("实例完成Modify Update | maxFiles: %d, hilbertOrder: %d | 平均更新时间: %-10.6f ms\n",

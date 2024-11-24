@@ -82,7 +82,7 @@ public class SearchPerformance_pre {
 
                             rowCount++;
                             // 更新进度条
-                            printProgressBar(rowCount, totalLines);
+//                            printProgressBar(rowCount, totalLines);
                         }
                     }
                     //预先搜索，每个区域大小为[1% * 1%]尝试聚合

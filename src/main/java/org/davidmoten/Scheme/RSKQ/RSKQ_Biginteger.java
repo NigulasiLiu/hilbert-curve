@@ -447,7 +447,6 @@ public class RSKQ_Biginteger {
                 if ("add".equals(op[i])) {
                     bitmap_b.set(files[i]);
                 }  //bsb = bsb.clearBit(fileIndex);  // 删除操作，清除bsb中相应位（设置为0）
-
             }
             byte[] hashKw_prime = hashFunction(Kw_prime, state.getC() + 1);
             // Step 7: 更新客户端状态

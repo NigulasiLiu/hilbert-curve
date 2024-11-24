@@ -155,7 +155,8 @@ public class BPCGenerator {
 //            System.out.println(entry.getValue());
 //            groupIndex++;
 //        }
-        System.out.println("BPC2:" + BPCGenerator.convertMapToPrefixString(results1,bits));
+        System.out.println("\nBPC2:" + BPCGenerator.convertMapToPrefixString(results1,bits));
+        System.out.println("\nBPC3:" + BPCGenerator.convertToOnlyPrefix(results1,bits));
 
     }
 }

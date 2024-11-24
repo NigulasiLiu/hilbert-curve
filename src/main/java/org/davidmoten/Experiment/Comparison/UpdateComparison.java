@@ -1,5 +1,7 @@
 package org.davidmoten.Experiment.Comparison;
 
+import org.davidmoten.Experiment.Correctness.RSKQ_Biginteger2;
+import org.davidmoten.Experiment.Correctness.TDSC2023_Biginteger2;
 import org.davidmoten.Scheme.RSKQ.RSKQ_Biginteger;
 import org.davidmoten.Scheme.TDSC2023.TDSC2023_Biginteger;
 
@@ -61,8 +63,8 @@ public class UpdateComparison {
                     List<Double> averageTDSCUpdateTimes = new ArrayList<>();
 
                     // 初始化 RSKQ_Biginteger 和 TDSC2023_Biginteger 实例
-                    RSKQ_Biginteger spqs = new RSKQ_Biginteger(maxFiles, hilbertOrder, 2);
-                    TDSC2023_Biginteger tdsc2023_biginteger = new TDSC2023_Biginteger(128, 2147483640, maxFiles, hilbertOrder, 2);
+                    RSKQ_Biginteger2 spqs = new RSKQ_Biginteger2(maxFiles, hilbertOrder, 2);
+                    TDSC2023_Biginteger2 tdsc2023_biginteger = new TDSC2023_Biginteger2(128, 2147483640, maxFiles, hilbertOrder, 2);
 
                     String[][] keywordItemSets = new String[objectnums][searchKeywords];
                     int rowCount = 0; // 记录处理的行数
@@ -100,26 +102,34 @@ public class UpdateComparison {
 
                             if (updateTypes.get(rowCount)) {
                                 // 第一种情况：修改
-                                ops = new String[]{"del", "add"};
-                                double rskq_time = spqs.ObjectUpdate(pSet, keywordItemSets[rowCount], ops, new int[]{fileID, (fileID + 1) % maxFiles});
-                                double tdsc_time1 = tdsc2023_biginteger.update(pSet, keywordItemSets[rowCount], ops[0], new int[]{fileID}, objectnums);
-                                double tdsc_time2 = tdsc2023_biginteger.update(pSet, keywordItemSets[rowCount], ops[1], new int[]{(fileID + 1) % maxFiles}, objectnums);
-                                averageTDSCUpdateTimes.add(tdsc_time1 + tdsc_time2);
+                                ops = new String[]{"add","del"};
+                                long start = System.nanoTime();
+                                spqs.ObjectUpdate(pSet, keywordItemSets[rowCount], ops, new int[]{fileID, (fileID + 1) % maxFiles},100000);
+                                double rskq_time = (System.nanoTime() - start)/1e6;
+                                long tdsc_time1 = System.nanoTime();
+                                tdsc2023_biginteger.update(pSet, keywordItemSets[rowCount], ops[0], new int[]{fileID}, objectnums);
+                                tdsc2023_biginteger.update(pSet, keywordItemSets[rowCount], ops[1], new int[]{(fileID + 1) % maxFiles}, objectnums);
+                                double tdsc_time2 = (System.nanoTime() - tdsc_time1)/1e6;
+                                averageTDSCUpdateTimes.add(tdsc_time2);
                                 averageRSKQUpdateTimes.add(rskq_time);
                             } else {
                                 // 第二种情况：添加
                                 files = new int[]{fileID};
                                 ops = new String[]{"add"};
-                                double rskq_time = spqs.ObjectUpdate(pSet, keywordItemSets[rowCount], ops, files);
-                                double tdsc_time1 = tdsc2023_biginteger.update(pSet, keywordItemSets[rowCount], ops[0], files, objectnums);
-                                averageTDSCUpdateTimes.add(tdsc_time1);
+                                long start = System.nanoTime();
+                                spqs.ObjectUpdate(pSet, keywordItemSets[rowCount], ops, new int[]{fileID},100000);
+                                double rskq_time = (System.nanoTime() - start)/1e6;
+                                long tdsc_time1 = System.nanoTime();
+                                tdsc2023_biginteger.update(pSet, keywordItemSets[rowCount], ops[0], new int[]{fileID}, objectnums);
+                                double tdsc_time2 = (System.nanoTime() - tdsc_time1)/1e6;
+                                averageTDSCUpdateTimes.add(tdsc_time2);
                                 averageRSKQUpdateTimes.add(rskq_time);
                             }
 
                             rowCount++;
 
                             // 更新进度条
-                            printProgressBar(rowCount, totalLines);
+//                            printProgressBar(rowCount, totalLines);
                         }
                     }
 
@@ -132,8 +142,8 @@ public class UpdateComparison {
                             maxFiles, hilbertOrder, avgRskqTime, avgTdscTime);
 
                     // 清除实例数据
-                    spqs.clearUpdateTime();
-                    tdsc2023_biginteger.clearUpdateTime();
+//                    spqs.clearUpdateTime();
+//                    tdsc2023_biginteger.clearUpdateTime();
                 }
             }
         }

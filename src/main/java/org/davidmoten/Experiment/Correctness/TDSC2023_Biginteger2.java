@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class TDSC_For_Correctness_Test {
+public class TDSC2023_Biginteger2 {
     // 列表用于存储 update 和 search 的时间
     public List<Double> totalUpdateTimes = new ArrayList<>();    // 存储 update 操作的总耗时
     public List<Double> clientSearchTimes = new ArrayList<>();         // 存储客户端 search 操作的时间
@@ -46,7 +46,7 @@ public class TDSC_For_Correctness_Test {
     private BigInteger n; // 最大文件数
 
     // 修改后的构造函数
-    public TDSC_For_Correctness_Test(int securityParameter, int maxnums_w, int maxFiles, int order, int dimension) throws Exception {
+    public TDSC2023_Biginteger2(int securityParameter, int maxnums_w, int maxFiles, int order, int dimension) throws Exception {
 //        this.maxnums_w = maxnums_w;
 //        this.filePath = filePath;
         this.hmac = Mac.getInstance(HMAC_ALGORITHM);
@@ -56,7 +56,7 @@ public class TDSC_For_Correctness_Test {
 
         this.KS = generateMasterKey(securityParameter);
 //        this.homomorphicEncryption = new HomomorphicEncryption(maxFiles); // 初始化同态加密实例
-        this.dprf = new BRC_DPRF(lambda,(int)Math.log(maxFiles));
+        this.dprf = new BRC_DPRF(lambda, (int) Math.log(maxFiles));
 
         this.T = new HashMap<>();
         this.PDB = new ConcurrentHashMap<>();
@@ -121,10 +121,11 @@ public class TDSC_For_Correctness_Test {
                 .toArray(BigInteger[]::new);
 
         // 获取BPC结果（包括分组）
-        Map<Integer, List<BigInteger>> resultMap = BPCGenerator.GetBPCValueMap(R, this.order*2);
+        Map<Integer, List<BigInteger>> resultMap = BPCGenerator.GetBPCValueMap(R, this.order * 2);
 //        System.out.println("BPC:" + BPCGenerator.convertMapToPrefixString(resultMap,this.order*2));
-        return BPCGenerator.convertMapToPrefixString(resultMap,this.order*2);
+        return BPCGenerator.convertMapToPrefixString(resultMap, this.order * 2);
     }
+
     private int getCounter(String input) {
         return T.getOrDefault(input, -1);
     }
@@ -157,19 +158,36 @@ public class TDSC_For_Correctness_Test {
             long startTime2 = System.nanoTime();            // 设置位图
             BigInteger B = BigInteger.ZERO;  // 使用 BigInteger 作为位图
             for (int fileIndex : files) {
-                if ("add".equals(op)) {
-                    B = B.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
-                } else if ("del".equals(op)) {
-                    B = B.setBit(fileIndex).not();  // 删除操作，设置bsa中相应位为1,然后取反
-                }
+                B = B.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
             }
-
-            BigInteger ep_c1 = skp_c1.add(B).mod(n);
+            if ("del".equals(op)) {
+                B = B.not();
+            }
+//            BigInteger ep_c1 = skp_c1.add(B).mod(n);
             long startTime4 = System.nanoTime();
-            PDB.put(new String(UTp_c_plus_1, StandardCharsets.UTF_8), ep_c1);
-//            System.out.println("TDSC_BITSET per ptime1: " + (startTime2-startTime1) / 1_000_000.0 + " ms.");
-//            System.out.println("TDSC_BITSET per ptime2: " + (startTime3-startTime2) / 1_000_000.0 + " ms.");
-//            System.out.println("TDSC_BITSET per ptime3: " + (startTime4-startTime3) / 1_000_000.0 + " ms.");
+            PDB.put(new String(UTp_c_plus_1, StandardCharsets.UTF_8), skp_c1.add(B).mod(n));
+//            // 初始化 BitSet
+//            BitSet bitSet = new BitSet();
+//            int maxIndex = (1 << 21) - 1; // 最大索引限制为 2^20 - 1
+//            // 设置大端逻辑的位
+//            for (int fileIndex : files) {
+//                if (fileIndex < 0 || fileIndex > maxIndex) {
+//                    throw new IllegalArgumentException("Index out of bounds: " + fileIndex);
+//                }
+//                int adjustedIndex = maxIndex - fileIndex; // 大端逻辑：倒置索引
+//                bitSet.set(adjustedIndex); // 设置位
+//            }
+//            // 将 BitSet 转换为 BigInteger
+//            BigInteger B = new BigInteger(1, bitSet.toByteArray());
+//            if ("del".equals(op)) {
+//                B = B.not(); // 删除操作，统一取反
+//            }
+//            // 计算 ep_c1
+////            BigInteger ep_c1 = skp_c1.add(B).mod(n);
+//            // 存储到 PDB
+//            long startTime4 = System.nanoTime();
+//            PDB.put(new String(UTp_c_plus_1, StandardCharsets.UTF_8), skp_c1.add(B).mod(n));
+
         }
         long pTime = System.nanoTime();
 
@@ -188,14 +206,13 @@ public class TDSC_For_Correctness_Test {
             // 设置位图
             BigInteger B = BigInteger.ZERO;  // 使用 BigInteger 作为位图
             for (int fileIndex : files) {
-                if ("add".equals(op)) {
-                    B = B.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
-                } else if ("del".equals(op)) {
-                    B = B.setBit(fileIndex).not();  // 删除操作，设置bsa中相应位为1,然后取反
-                }
+                B = B.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
             }
-            BigInteger ew_c1 = skw_c1.add(B).mod(n);
-            KDB.put(new String(UTw_c1, StandardCharsets.UTF_8), ew_c1);
+            if ("del".equals(op)) {
+                B = B.not();
+            }
+//            BigInteger ew_c1 = skw_c1.add(B).mod(n);
+            KDB.put(new String(UTw_c1, StandardCharsets.UTF_8), skw_c1.add(B).mod(n));
         }
         long wTime = System.nanoTime();
         // 输出总耗时
@@ -300,7 +317,7 @@ public class TDSC_For_Correctness_Test {
             KDB.put(new String(UTc, StandardCharsets.UTF_8), SumWe); // 将最新的索引更新至UTc
             SumWList.add(SumWe);
         }
-        if(!exist){
+        if (!exist) {
             long client_time_notexist = System.nanoTime();
             // 存储到列表中
             double msclient_time = (client_time_notexist - startTime) / 1_000_000.0;
@@ -347,7 +364,7 @@ public class TDSC_For_Correctness_Test {
         long client_time4 = System.nanoTime();
         // 输出总耗时
 //        double totalLoopTimeMs = (System.nanoTime() - startTime) / 1_000_000.0;
-//        System.out.println("TDSC_For_Correctness_Test Total search time: " + totalLoopTimeMs + " ms).");
+//        System.out.println("TDSC2023_Biginteger2 Total search time: " + totalLoopTimeMs + " ms).");
         // 客户端部分结束计时
 //        long server_time2 = System.nanoTime();
         // 输出客户端和服务器端的时间消耗
@@ -361,6 +378,7 @@ public class TDSC_For_Correctness_Test {
         serverSearchTimes.add(msserver_time);
         return BR;
     }
+
     /**
      * 伪随机函数 P'
      *
@@ -566,8 +584,8 @@ public class TDSC_For_Correctness_Test {
         int order = 12; // Hilbert curve 阶数
         int dimension = 2; // 维度
 
-        // 初始化 TDSC_For_Correctness_Test 实例
-        TDSC_For_Correctness_Test tdsc2023 = new TDSC_For_Correctness_Test(securityParameter, maxnums_w, maxFiles, order, dimension);
+        // 初始化 TDSC2023_Biginteger2 实例
+        TDSC2023_Biginteger2 tdsc2023 = new TDSC2023_Biginteger2(securityParameter, maxnums_w, maxFiles, order, dimension);
 
         // 创建随机生成器和一些测试数据
         Random random = new Random();
@@ -635,6 +653,7 @@ public class TDSC_For_Correctness_Test {
         }
         System.out.println("搜索操作完成。");
     }
+
     public static void findIndexesOfOne(BigInteger number) {
         // 收集所有位索引
         List<Integer> indexes = new ArrayList<>();

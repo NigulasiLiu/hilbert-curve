@@ -20,7 +20,7 @@ public class SearchPerformance {
         int delupdatetimes = 0;
         int batchSize = 500; // 每次处理x个更新
         int objectnums = 100000; // 数据集大小
-        int rangePredicate = 100000;
+        int rangePredicate = 1<<20;
         int[] maxfilesArray = {1 << 20};
         int[] hilbertOrders = {8, 10, 12};
         int edgeLength = 1 << hilbertOrders[0];
@@ -68,7 +68,7 @@ public class SearchPerformance {
                 System.out.printf("正在初始化实例 | hilbertOrder: %d\n", hilbertOrder);
 
                 RSKQ_Biginteger spqs = new RSKQ_Biginteger(maxfilesArray[0], hilbertOrder, 2);
-                TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(128, rangePredicate, maxfilesArray[0], hilbertOrder, 2);
+                TDSC2023_Biginteger tdsc2023 = new TDSC2023_Biginteger(128, 1<<30, maxfilesArray[0], hilbertOrder, 2);
 
                 // 执行更新操作
                 for (int i = 0; i < dataRows.size(); i++) {
@@ -81,7 +81,7 @@ public class SearchPerformance {
                     tdsc2023.update(pSet, row.keywords, "add", files, rangePredicate);
 
 //                    // 更新进度条
-                    printProgressBar(i, dataRows.size());
+//                    printProgressBar(i, dataRows.size());
 //                    if ((i + 1) % batchSize == 0) {
 //                        System.out.printf("Completed batch %d of updates.\n", (i + 1) / batchSize);
 //                    }

@@ -101,12 +101,16 @@ public class BRC_DPRF {
                 .toArray(BigInteger[]::new);
         List<String> BRC = BPCGenerator.convertToOnlyPrefix(BPCGenerator.GetBPCValueMap(Range, depth), depth);
         for (String bpc : BRC) {
+            int shiftBits = depth - bpc.length();
             //bpc长度等于depth时，说明是一个单独的叶子节点，否则存储多个index
-            if (depth - bpc.length() != 0) {
-                int range = 1 << (depth - bpc.length());
-                int base = Integer.valueOf(bpc, 2) << 2;
+            if (shiftBits != 0) {
 //            int[] containedPos = new int[1<<(depth-bpc.length())];
                 List<Integer> containsPos = new ArrayList<>();
+                int range = 1 << shiftBits; //前缀bpc下包含了多range个子前缀编码
+                int base = 0;
+                if (!(shiftBits == depth && bpc.isEmpty())) {
+                    base = Integer.valueOf(bpc, 2) << shiftBits;  //bpc是一个二进制序列，将其左移(depth - bpc.length())位
+                }
                 for (int i = 0; i < range; i++) {
                     containsPos.add(base + i);
                 }
@@ -143,7 +147,7 @@ public class BRC_DPRF {
 //            System.out.printf("叶子节点索引: %d, 二进制路径: %s ", i, leafPaths.get(i));
 //            System.out.printf("PRF值: %s\n", Arrays.toString(computePRF(Kp, leafPaths.get(i))));
 //        }
-        List<Trapdoor> trapdoors = dprf.delKey(Kp, r2 - 1);
+        List<Trapdoor> trapdoors = dprf.delKey(Kp, 0);
         // 输出 Trapdoor
         System.out.println("\n生成的 Trapdoor：");
         for (Trapdoor t : trapdoors) {
@@ -153,14 +157,14 @@ public class BRC_DPRF {
                     t.getPath());
         }
 
-        System.out.printf("叶子节点索引: %d, 二进制路径: %s ", r2 - 1, leafPaths.get(r2 - 1));
-        System.out.printf("PRF值: %s\n", Arrays.toString(dprf.deriveByIndex(r2 - 1, trapdoors)));
+        System.out.printf("叶子节点索引: %d, 二进制路径: %s ", 0, leafPaths.get(0));
+        System.out.printf("PRF值: %s\n", Arrays.toString(dprf.deriveByIndex(0, trapdoors)));
 
         System.out.printf("叶子节点索引: %d, 二进制路径: %s ", 8, leafPaths.get(8));
-        System.out.printf("缓存PRF值: %s\n", Arrays.toString(trapdoors.get(1).getPartialPRF()));
-        System.out.printf("手动PRF值: %s\n", Arrays.toString(computePRF(trapdoors.get(1).getPartialPRF(), "00")));
-        System.out.printf("newDerived PRF值: %s\n", Arrays.toString(dprf.newDerivedKey(Kp, 8)));
-        System.out.printf("PRF值: %s\n", Arrays.toString(dprf.deriveByIndex(8, trapdoors)));
+//        System.out.printf("缓存PRF值: %s\n", Arrays.toString(trapdoors.get(1).getPartialPRF()));
+//        System.out.printf("手动PRF值: %s\n", Arrays.toString(computePRF(trapdoors.get(1).getPartialPRF(), "00")));
+        System.out.printf("newDerived PRF值: %s\n", Arrays.toString(dprf.newDerivedKey(Kp, 0)));
+//        System.out.printf("PRF值: %s\n", Arrays.toString(dprf.deriveByIndex(8, trapdoors)));
 
         System.out.println("叶子节点的BRC：");
         for (String brc : BRC) {

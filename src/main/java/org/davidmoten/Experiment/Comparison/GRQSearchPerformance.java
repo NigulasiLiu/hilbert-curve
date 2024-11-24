@@ -85,7 +85,7 @@ public class GRQSearchPerformance {
                     xCoordinates[i] = Math.toIntExact(row.pointX);
                     yCoordinates[i] = Math.toIntExact(row.pointY);
 //                    // 更新进度条
-                    printProgressBar(i, dataRows.size());
+//                    printProgressBar(i, dataRows.size());
                 }
                 //初始化实例ConsOne
                 ConstructionOne con1 = new ConstructionOne(lambda, t, dataRows.size(), xCoordinates, yCoordinates);

@@ -2,7 +2,6 @@ package org.davidmoten.Experiment.Correctness;
 
 
 import org.davidmoten.BPC.BPCGenerator;
-import org.davidmoten.BPC.BPCGenerator_Bak;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 
 import java.io.BufferedReader;
@@ -21,7 +20,7 @@ import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-public class RSKQ_For_Correctness_Test {
+public class RSKQ_Biginteger2 {
     // 列表用于存储 update 和 search 的时间
     public List<Double> totalUpdateTimes = new ArrayList<>();    // 存储 update 操作的总耗时
     public List<Double> clientSearchTimes = new ArrayList<>();         // 存储客户端 search 操作的时间
@@ -51,7 +50,7 @@ public class RSKQ_For_Correctness_Test {
     public HilbertCurve hilbertCurve;
 
     // 修改后的构造函数
-    public RSKQ_For_Correctness_Test(int maxFiles, int order, int dimension) throws NoSuchAlgorithmException {
+    public RSKQ_Biginteger2(int maxFiles, int order, int dimension) throws NoSuchAlgorithmException {
         this.messageDigest = MessageDigest.getInstance(HASH_ALGORITHM);
 //        this.filePath = filePath;
 //        this.maxFiles = maxFiles;
@@ -427,29 +426,37 @@ public class RSKQ_For_Correctness_Test {
             // Step 4: 计算 I,C = hashFunction(Kw, Rc_plus_1) ⊕ state[2]
             byte[] I = hashFunction(Kw, Rc_plus_1); // 根据Kw和Rc+1计算索引I
             byte[] C = xorBytes(hashFunction(Kw, Rc_plus_1), intToBytes(state[2]));
+
             // Step 5: 根据操作选择 bi-bitmap (bsa, bsb)
             BigInteger bsa = BigInteger.ZERO;  // 使用 BigInteger 作为位图
             BigInteger bsb = BigInteger.ZERO;
-
             // 根据操作设置 bsa 和 bsb
             for (int fileIndex : files) {
+                bsa = bsa.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
                 if ("add".equals(op)) {
-                    bsa = bsa.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
                     bsb = bsb.setBit(fileIndex);  // 添加操作，设置bsb中相应位为1
-                } else if ("del".equals(op)) {
-                    bsa = bsa.setBit(fileIndex);  // 删除操作，设置bsa中相应位为1
-                    //bsb = bsb.clearBit(fileIndex);  // 删除操作，清除bsb中相应位（设置为0）
                 }
             }
+
+//            // 根据操作设置 bsa 和 bsb
+//            for (int i = 0; i < files.length; i++) {
+//                bsa = bsa.setBit(files[i]);  // 添加操作，设置bsa中相应位为1
+//                if ("add".equals(op[i])) {
+//                    bsb = bsb.setBit(files[i]);  // 添加操作，设置bsb中相应位为1
+//                }  //bsb = bsb.clearBit(fileIndex);  // 删除操作，清除bsb中相应位（设置为0）
+//
+//            }
             // Step 6: 加密 bsa 和 bsb，不使用加密函数，而是和 hashFunction(Kw_prime, state[1] + 1) 异或
             BigInteger hashKw_prime = new BigInteger(1, hashFunction(Kw_prime, state[1] + 1));
-            BigInteger ea = bsa.xor(hashKw_prime);
-            BigInteger eb = bsb.xor(hashKw_prime);
+//            BigInteger ea = bsa.xor(hashKw_prime);
+//            BigInteger eb = bsb.xor(hashKw_prime);
             // Step 7: 更新客户端状态
             SC.put(p, new int[]{state[0], state[1] + 1, Rc_plus_1});
             //Server
             // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
-            PDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, ea, eb});
+            PDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, bsa.xor(hashKw_prime), bsb.xor(hashKw_prime)});
+
+
         }
         long pTime = System.nanoTime();
         for (String w : W) {
@@ -471,6 +478,12 @@ public class RSKQ_For_Correctness_Test {
             BigInteger bsb = BigInteger.ZERO;
 
             // 根据操作设置 bsa 和 bsb
+            for (int fileIndex : files) {
+                bsa = bsa.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
+                if ("add".equals(op)) {
+                    bsb = bsb.setBit(fileIndex);  // 添加操作，设置bsb中相应位为1
+                }
+            }
             for (int fileIndex : files) {
                 if ("add".equals(op)) {
                     bsa = bsa.setBit(fileIndex);  // 添加操作，设置bsa中相应位为1
@@ -500,57 +513,100 @@ public class RSKQ_For_Correctness_Test {
         totalUpdateTimes.add(totalLoopTimeMs);
 //        System.out.println("Update operation completed.");
     }
+    public void ObjectUpdate(long[] pSet, String[] W, String[] op, int[] files, int CounterLimits) throws Exception {
+        byte[] combinedKey;
+        byte[] Kw;
+        byte[] Kw_prime;
+        long startTime = System.nanoTime();
+        List<String> P = preCode(pSet);
+        for (String p : P) {
+            //Client
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], p);
+            Kw = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
+            Kw_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4); // 假设 LAMBDA / 4 是所需的长度
 
-    public static Object[] GetRandomItem(int W_num,String FILE_PATH) throws IOException {
-        BufferedReader reader = new BufferedReader(new FileReader(FILE_PATH));
-        String selectedRow = null;
-        String line;
-        Random random = new Random();
+            // Step 2: 获取客户端的当前关键词状态
+            int[] state = SC.getOrDefault(p, new int[]{0, -1, getRandomFromPool()});
+            // Step 3: 随机生成 Rc+1
+            int Rc_plus_1 = getRandomFromPool();
 
-        // 跳过第一行（标题行）
-        String header = reader.readLine();
+            // Step 4: 计算 I,C = hashFunction(Kw, Rc_plus_1) ⊕ state[2]
+            byte[] I = hashFunction(Kw, Rc_plus_1); // 根据Kw和Rc+1计算索引I
+            byte[] C = xorBytes(hashFunction(Kw, Rc_plus_1), intToBytes(state[2]));
 
-        int currentLine = 0;
-        while ((line = reader.readLine()) != null) {
-            currentLine++;
-            // 以1/N的概率选择当前行，确保每一行被选中的概率相同
-            if (random.nextInt(currentLine) == 0) {
-                selectedRow = line;
+            // Step 5: 根据操作选择 bi-bitmap (bsa, bsb)
+            BigInteger bsa = BigInteger.ZERO;  // 使用 BigInteger 作为位图
+            BigInteger bsb = BigInteger.ZERO;
+            // 根据操作设置 bsa 和 bsb
+            for (int i=0;i<files.length;i++) {
+                if ("add".equals(op[i])) {
+                    bsa = bsa.setBit(files[i]);  // 添加操作，设置bsa中相应位为1
+                    bsb = bsb.setBit(files[i]);  // 添加操作，设置bsb中相应位为1
+                } else if ("del".equals(op[i])) {
+                    bsa = bsa.setBit(files[i]);  // 删除操作，设置bsa中相应位为1
+                    //bsb = bsb.clearBit(fileIndex);  // 删除操作，清除bsb中相应位（设置为0）
+                }
             }
+            // Step 6: 加密 bsa 和 bsb，不使用加密函数，而是和 hashFunction(Kw_prime, state[1] + 1) 异或
+            BigInteger hashKw_prime = new BigInteger(1, hashFunction(Kw_prime, state[1] + 1));
+//            BigInteger ea = bsa.xor(hashKw_prime);
+//            BigInteger eb = bsb.xor(hashKw_prime);
+            // Step 7: 更新客户端状态
+            SC.put(p, new int[]{state[0], state[1] + 1, Rc_plus_1});
+            //Server
+            // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
+            PDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, bsa.xor(hashKw_prime), bsb.xor(hashKw_prime)});
+
+
         }
+        long pTime = System.nanoTime();
+        for (String w : W) {
+            //Client
+            combinedKey = pseudoRandomFunction(new byte[LAMBDA], w);
+            Kw = Arrays.copyOfRange(combinedKey, 0, LAMBDA / 8);
+            Kw_prime = Arrays.copyOfRange(combinedKey, LAMBDA / 8, LAMBDA / 4); // 假设 LAMBDA / 4 是所需的长度
 
-        reader.close();
+            // Step 2: 获取客户端的当前关键词状态
+            int[] state = SC.getOrDefault(w, new int[]{0, -1, getRandomFromPool()});
+            // Step 3: 随机生成 Rc+1
+            int Rc_plus_1 = getRandomFromPool();
 
-        if (selectedRow == null) {
-            System.out.println("CSV文件是空的或只有标题行。");
-            return null;
-        }
+            // Step 4: 计算 I,C = hashFunction(Kw, Rc_plus_1) ⊕ state[2]
+            byte[] I = hashFunction(Kw, Rc_plus_1); // 根据Kw和Rc+1计算索引I
+            byte[] C = xorBytes(hashFunction(Kw, Rc_plus_1), intToBytes(state[2]));
+            // Step 5: 根据操作选择 bi-bitmap (bsa, bsb)
+            BigInteger bsa = BigInteger.ZERO;  // 使用 BigInteger 作为位图
+            BigInteger bsb = BigInteger.ZERO;
 
-        // 分割该行，提取数据
-        String[] columns = selectedRow.split(",");
-
-        // id 转换为位图B
-        BigInteger id = new BigInteger(columns[0]);
-        // x 和 y 转换为 long[] pSet
-        long x = Long.parseLong(columns[1]);
-        long y = Long.parseLong(columns[2]);
-        long[] pSet = new long[]{x, y};
-
-        // key1 到 key12 转换为 String[] W
-        String[] W = new String[W_num];
-        for (int i = 0; i < W_num; i++) {
-            // 如果列存在，则取值，否则设为null
-            if (columns.length > (i + 3)) {
-                W[i] = columns[i + 3];
-            } else {
-                W[i] = null;
+            // 根据操作设置 bsa 和 bsb
+            for (int i=0;i<files.length;i++) {
+                if ("add".equals(op[i])) {
+                    bsa = bsa.setBit(files[i]);  // 添加操作，设置bsa中相应位为1
+                    bsb = bsb.setBit(files[i]);  // 添加操作，设置bsb中相应位为1
+                } else if ("del".equals(op[i])) {
+                    bsa = bsa.setBit(files[i]);  // 删除操作，设置bsa中相应位为1
+                    //bsb = bsb.clearBit(fileIndex);  // 删除操作，清除bsb中相应位（设置为0）
+                }
             }
+            // Step 6: 加密 bsa 和 bsb，不使用加密函数，而是和 hashFunction(Kw_prime, state[1] + 1) 异或
+            BigInteger hashKw_prime = new BigInteger(1, hashFunction(Kw_prime, state[1] + 1));
+//            BigInteger ea = bsa.xor(hashKw_prime);
+//            BigInteger eb = bsb.xor(hashKw_prime);
+            // Step 7: 更新客户端状态
+            SC.put(w, new int[]{state[0], state[1] + 1, Rc_plus_1});
+            //Server
+            // Step 8: 将 (I, C, (ea, eb)) 发送到服务器（存入PDB）
+            KDB.put(new String(I, StandardCharsets.UTF_8), new Object[]{C, bsa.xor(hashKw_prime), bsb.xor(hashKw_prime)});
         }
-
-
-
-        // 返回pSet和W
-        return new Object[]{id, pSet, W};
+        long wTime = System.nanoTime();
+        // 输出总耗时
+        double totalLoopTimeMs = (System.nanoTime()-startTime) / 1_000_000.0;
+//        System.out.println("SPQS_BITSET ptime: " + (pTime-startTime) / 1_000_000.0 + " ms.");
+//        System.out.println("SPQS_BITSET wtime: " + (wTime-pTime) / 1_000_000.0 + " ms.");
+//        System.out.println("SPQS_BITSET Total update time: " + totalLoopTimeMs + " ms.");
+        // 存储到列表中
+        totalUpdateTimes.add(totalLoopTimeMs);
+//        System.out.println("Update operation completed.");
     }
 
     public static void findIndexesOfOne(BigInteger number) {
@@ -743,24 +799,6 @@ public class RSKQ_For_Correctness_Test {
         }
         System.out.println();
     }
-    public void batchObjectUpdate(List<long[]> pSets, List<String[]> WList, List<int[]> filesList, int batchSize) throws Exception {
-        int totalUpdates = pSets.size();
-
-        for (int i = 0; i < totalUpdates; i += batchSize) {
-            // 每次处理一个批次
-            int end = Math.min(i + batchSize, totalUpdates);
-            for (int j = i; j < end; j++) {
-                long[] pSet = pSets.get(j);
-                String[] W = WList.get(j);
-                int[] files = filesList.get(j);
-                ObjectUpdate(pSet, W, "add", files, 1000);
-            }
-
-            // 清理已完成的批次（可以考虑清理缓存或触发GC等）
-            System.gc();
-            System.out.println("Completed batch " + (i / batchSize + 1) + " of updates.");
-        }
-    }
 
     public static void main(String[] args) throws Exception {
         // 定义参数
@@ -768,8 +806,8 @@ public class RSKQ_For_Correctness_Test {
         int order = 17; // Hilbert curve 阶数
         int dimension = 2; // 维度
 
-        // 初始化 RSKQ_For_Correctness_Test 实例
-        RSKQ_For_Correctness_Test spqs = new RSKQ_For_Correctness_Test(maxFiles, order, dimension);
+        // 初始化 RSKQ_Biginteger2 实例
+        RSKQ_Biginteger2 spqs = new RSKQ_Biginteger2(maxFiles, order, dimension);
 
         // 模拟一些数据
         Random random = new Random();
@@ -815,7 +853,8 @@ public class RSKQ_For_Correctness_Test {
         // 执行 update 操作（插入数据）
         System.out.println("插入操作开始...");
         for (int i = 0; i < numObjects; i++) {
-            spqs.ObjectUpdate(pSets[i], WSets[i], "add", fileSets[i], rangePredicate);
+//            spqs.ObjectUpdate(pSets[i], WSets[i], "add", fileSets[i], rangePredicate);
+            spqs.ObjectUpdate(pSets[i], WSets[i], new String[]{"add"}, fileSets[i], rangePredicate);
         }
         System.out.println("插入操作完成。");
 

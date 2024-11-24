@@ -62,7 +62,7 @@ public class TDSC2023_Biginteger {
         this.KS = generateMasterKey(securityParameter);
 //        this.homomorphicEncryption = new HomomorphicEncryption(maxFiles); // 初始化同态加密实例
 //        this.dprfSimplify = new DPRF_Simplify(rangeLimit);
-        this.dprf = new BRC_DPRF(lambda, (int) Math.log(maxFiles));
+        this.dprf = new BRC_DPRF(lambda, 20);
 
         this.T = new HashMap<>();
         this.PDB = new ConcurrentHashMap<>();

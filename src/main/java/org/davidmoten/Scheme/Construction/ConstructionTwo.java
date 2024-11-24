@@ -378,7 +378,7 @@ public class ConstructionTwo {
 
             // 更新进度条
             completedSteps++;
-            printProgress(completedSteps, totalSteps);
+//            printProgress(completedSteps, totalSteps);
         }
 
         // 处理 Y 轴 (BTy)
@@ -400,7 +400,7 @@ public class ConstructionTwo {
 
             // 更新进度条
             completedSteps++;
-            printProgress(completedSteps, totalSteps);
+//            printProgress(completedSteps, totalSteps);
         }
     }
 
