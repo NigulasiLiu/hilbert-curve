@@ -3,7 +3,7 @@ package org.davidmoten.Scheme.RSKQ;
 
 import org.bouncycastle.crypto.digests.Blake2bDigest;
 import org.davidmoten.BPC.BPCGenerator;
-import org.davidmoten.DataProcessor.DataSetAccess;
+import org.davidmoten.SpatialDataProcessor.StaticData.DataSetAccess;
 import org.davidmoten.Hilbert.HilbertComponent.HilbertCurve;
 
 import java.math.BigInteger;
@@ -19,7 +19,7 @@ import java.util.stream.Stream;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-import static org.davidmoten.Experiment.UseDataAccessClass.BRQComparisonInput.generateHilbertMatrix;
+import static org.davidmoten.Experiment.TestByUserInput.BRQComparisonInput.generateHilbertMatrix;
 
 
 public class RSKQ_Biginteger {
@@ -67,13 +67,76 @@ public class RSKQ_Biginteger {
         this.hilbertCurve = HilbertCurve.bits(order).dimensions(dimension);
         this.secureRandom = new SecureRandom(); // 初始化 SecureRandom 实例
     }
+    /**
+     * 伪随机函数 P'
+     *
+     * @param key     安全密钥
+     * @param keyword 关键词
+     * @return 伪随机生成的密钥
+     * @throws NoSuchAlgorithmException
+     * @throws InvalidKeyException
+     */
+    private byte[] pseudoRandomFunction(byte[] key, String keyword) throws NoSuchAlgorithmException, InvalidKeyException {
+        Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
+        SecretKeySpec keySpec = new SecretKeySpec(key, HMAC_ALGORITHM);
+        hmac.init(keySpec);
+        return hmac.doFinal(keyword.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /**
+     * 安全哈希函数 H1, H2
+     *
+     * @param input1 输入值1
+     * @param input2 输入值2
+     * @return 哈希后的值
+     * @throws NoSuchAlgorithmException
+     */
+    private byte[] hashFunction(byte[] input1, byte[] input2) {
+        Blake2bDigest digest = new Blake2bDigest(HASH_OUTPUT_LENGTH * 8); // 输出位数为 128 位
+
+        // 更新哈希数据
+        digest.update(input1, 0, input1.length);
+        digest.update(input2, 0, input2.length);
+
+        // 输出哈希值
+        byte[] result = new byte[HASH_OUTPUT_LENGTH];
+        digest.doFinal(result, 0);
+        return result;
+    }
+    /**
+     * 安全哈希函数 H3, H4, H5
+     *
+     * @param input1 输入值1
+     * @param input2 输入值2
+     * @return 哈希后的值
+     * @throws NoSuchAlgorithmException
+     */
+    private byte[] hashFunction(byte[] input1, int input2) {
+        Blake2bDigest digest = new Blake2bDigest(HASH_OUTPUT_LENGTH * 8); // 设置输出位数为 128 位
+
+        // 更新哈希数据
+        digest.update(input1, 0, input1.length);
+
+        // 将 int 转为 byte[] 并添加到哈希
+        intBuffer[0] = (byte) (input2 >> 24);
+        intBuffer[1] = (byte) (input2 >> 16);
+        intBuffer[2] = (byte) (input2 >> 8);
+        intBuffer[3] = (byte) input2;
+        digest.update(intBuffer, 0, intBuffer.length);
+
+        // 输出哈希值
+        byte[] result = new byte[HASH_OUTPUT_LENGTH];
+        digest.doFinal(result, 0);
+        return result;
+    }
     // 生成长度为 λ 的随机数 Rc+1
     private byte[] generateRandomRc() {
         byte[] randomBytes = new byte[LAMBDA / 8]; // λ bits = λ / 8 bytes
         secureRandom.nextBytes(randomBytes);
         return randomBytes;
     }
-    private List<String> preCode(long[] pSet) {
+
+    public List<String> preCode(long[] pSet) {
         // 计算点的 Hilbert 索引
         BigInteger pointHilbertIndex = this.hilbertCurve.index(pSet);
 
@@ -106,9 +169,9 @@ public class RSKQ_Biginteger {
                 .toArray(BigInteger[]::new);
 
         // 获取BPC结果（包括分组）
-        Map<Integer, List<BigInteger>> resultMap = BPCGenerator.GetBPCValueMap(R, this.order*2);
+        Map<Integer, List<BigInteger>> resultMap = BPCGenerator.GetBPCValueMap(R, this.order * 2);
 //        System.out.println("BPC:" + BPCGenerator.convertMapToPrefixString(resultMap,this.order*2));
-        return BPCGenerator.convertMapToPrefixString(resultMap,this.order*2);
+        return BPCGenerator.convertMapToPrefixString(resultMap, this.order * 2);
     }
 
     public List<String> preCover(BigInteger[][] Matrix) {
@@ -119,9 +182,9 @@ public class RSKQ_Biginteger {
         }
 
         // 获取BPC结果（包括分组）
-        Map<Integer, List<BigInteger>> resultMap = BPCGenerator.GetBPCValueMap(R, this.order*2);
+        Map<Integer, List<BigInteger>> resultMap = BPCGenerator.GetBPCValueMap(R, this.order * 2);
 //        System.out.println("BPC:" + BPCGenerator.convertMapToPrefixString(resultMap,this.order*2));
-        return BPCGenerator.convertMapToPrefixString(resultMap,this.order*2);
+        return BPCGenerator.convertMapToPrefixString(resultMap, this.order * 2);
     }
 
     /**
@@ -314,7 +377,7 @@ public class RSKQ_Biginteger {
             // 记录 Rc, c0, c (客户端)
             byte[] Ri = state.getRc();
             int c0 = state.getC0();
-            int c =state.getC();
+            int c = state.getC();
 
 
             // 开始服务器部分计时
@@ -459,7 +522,7 @@ public class RSKQ_Biginteger {
                     new CipherTextBytes(
                             xorBytes(hashFunction(Kw, Rc_plus_1), state.getRc()),
                             new BigInteger(1, hashKw_prime).xor(new BigInteger(1, bitmap_a.toByteArray())),
-                            new BigInteger(1, hashKw_prime).xor(bitmap_b.isEmpty()? BigInteger.ZERO : new BigInteger(1,bitmap_b.toByteArray()))
+                            new BigInteger(1, hashKw_prime).xor(bitmap_b.isEmpty() ? BigInteger.ZERO : new BigInteger(1, bitmap_b.toByteArray()))
                     )
             );
 //            PDB.put(new String(hashFunction(Kw, Rc_plus_1), StandardCharsets.UTF_8),
@@ -521,7 +584,7 @@ public class RSKQ_Biginteger {
                     new CipherTextBytes(
                             xorBytes(hashFunction(Kw, Rc_plus_1), state.getRc()),
                             new BigInteger(1, hashKw_prime).xor(new BigInteger(1, bitmap_a.toByteArray())),
-                            new BigInteger(1, hashKw_prime).xor(bitmap_b.isEmpty()? BigInteger.ZERO : new BigInteger(1,bitmap_b.toByteArray()))
+                            new BigInteger(1, hashKw_prime).xor(bitmap_b.isEmpty() ? BigInteger.ZERO : new BigInteger(1, bitmap_b.toByteArray()))
                     )
             );
             // 检查键是否已存在
@@ -551,6 +614,7 @@ public class RSKQ_Biginteger {
 //        System.out.println("Update operation completed.");
         return totalLoopTimeMs;
     }
+
     public BigInteger ObjectSearch(BigInteger[][] Matrix, String[] WQ) throws Exception {
         long totalLoopTime = 0; // 初始化总时间变量
         // 客户端：生成搜索请求
@@ -612,9 +676,8 @@ public class RSKQ_Biginteger {
 //                byte[] I = hashFunction(Kp, Ri);
                 String keyI = new String(hashFunction(Kp, Ri), StandardCharsets.UTF_8);
                 if (!PDB.containsKey(keyI)) {
-                    // 键已存在，打印日志说明
-                    System.out.println("Key does not exist in PDB: " + keyI);
-                    System.out.printf("p: %s |", p);
+//                    System.out.println("Key does not exist in PDB: " + keyI);
+//                    System.out.printf("p: %s |", p);
                     continue;
 //                System.out.print(findRIndexes(Rc_plus_1));
                 }
@@ -652,11 +715,14 @@ public class RSKQ_Biginteger {
             for (int i = c0; i <= c; i++) {
                 BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kp_prime, i));
 //                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
-                BigInteger bsa = E.get(i - c0)[0].xor(hashKw_prime_H3);
-                BigInteger bsb = E.get(i - c0)[1].xor(hashKw_prime_H3);
 
-                // 更新bsw,not按位取反，negate取负数
-                bsp = bsp.and(bsa.not()).xor(bsa.and(bsb));
+                if (E.containsKey(i - c0)) {
+                    BigInteger bsa = E.get(i - c0)[0].xor(hashKw_prime_H3);
+                    BigInteger bsb = E.get(i - c0)[1].xor(hashKw_prime_H3);
+
+                    // 更新bsw,not按位取反，negate取负数
+                    bsp = bsp.and(bsa.not()).xor(bsa.and(bsb));
+                }
             }
 
             // Step 10: 更新客户端状态
@@ -805,6 +871,7 @@ public class RSKQ_Biginteger {
 //        System.out.println("RSKQ_Biginteger Total search time: " + (totalLoopTime+precoverTime) + " ns (" + (totalLoopTimeMs+(precoverTime/1e6)) + " ms).");
         return Sump.and(Sumw);
     }
+
     public BigInteger GRQSearch(BigInteger[][] Matrix) throws Exception {
         long totalLoopTime = 0; // 初始化总时间变量
         // 客户端：生成搜索请求
@@ -864,9 +931,8 @@ public class RSKQ_Biginteger {
                 // Step 4: 计算I
                 String keyI = new String(hashFunction(Kp, Ri), StandardCharsets.UTF_8);
                 if (!PDB.containsKey(keyI)) {
-                    // 键已存在，打印日志说明
-                    System.out.println("Key does not exist in PDB: " + keyI);
-                    System.out.printf("p: %s |", p);
+//                    System.out.println("Key does not exist in PDB: " + keyI);
+//                    System.out.printf("p: %s |", p);
                     continue;
 //                System.out.print(findRIndexes(Rc_plus_1));
                 }
@@ -902,10 +968,12 @@ public class RSKQ_Biginteger {
             for (int i = c0; i <= c; i++) {
                 BigInteger hashKw_prime_H3 = new BigInteger(1, hashFunction(Kp_prime, i));
 //                BigInteger hashKw_prime_H4 = new BigInteger(1, hashFunction(Kw_prime, i));
-                BigInteger bsa = E.get(i - c0)[0].xor(hashKw_prime_H3);
-                BigInteger bsb = E.get(i - c0)[1].xor(hashKw_prime_H3);
-                // 更新bsw,not按位取反，negate取负数
-                bsp = bsp.and(bsa.not()).xor(bsa.and(bsb));
+                if (E.containsKey(i - c0)) {
+                    BigInteger bsa = E.get(i - c0)[0].xor(hashKw_prime_H3);
+                    BigInteger bsb = E.get(i - c0)[1].xor(hashKw_prime_H3);
+                    // 更新bsw,not按位取反，negate取负数
+                    bsp = bsp.and(bsa.not()).xor(bsa.and(bsb));
+                }
             }
             // Step 10: 更新客户端状态
             SC.put(p, new ClientStateBytes(c + 1, c, generateRandomRc()));
@@ -930,7 +998,7 @@ public class RSKQ_Biginteger {
         // 清除"最大耗时-最小耗时"对数,便于计算合理的平均值
         int delupdatetimes = 1;
         // 需要在内存中存储，所以需要插入 updatetime 个 Object
-        int updatetimes = 100000;
+        int updatetimes = 1000;
         int batchSize = 500; // 每次处理 x 个更新
         // 数据集大小为 1 Million 个条目
         int objectnums = 1000000;
@@ -966,7 +1034,7 @@ public class RSKQ_Biginteger {
                 System.out.printf("Update完成，平均更新时间: | RSKQ_Biginteger: |%-10.6f|ms\n",
                         spqsBitset.getAverageUpdateTime());
                 System.out.printf("更新数量: | PDB: |%d| KDB: |%d|\n",
-                        spqsBitset.getPDBSize(),spqsBitset.getKDBSize());
+                        spqsBitset.getPDBSize(), spqsBitset.getKDBSize());
             }
         }
 
@@ -1103,79 +1171,6 @@ public class RSKQ_Biginteger {
     }
 
     /**
-     * 伪随机函数 P'
-     *
-     * @param key     安全密钥
-     * @param keyword 关键词
-     * @return 伪随机生成的密钥
-     * @throws NoSuchAlgorithmException
-     * @throws InvalidKeyException
-     */
-    private byte[] pseudoRandomFunction(byte[] key, String keyword) throws NoSuchAlgorithmException, InvalidKeyException {
-        Mac hmac = Mac.getInstance(HMAC_ALGORITHM);
-        SecretKeySpec keySpec = new SecretKeySpec(key, HMAC_ALGORITHM);
-        hmac.init(keySpec);
-        return hmac.doFinal(keyword.getBytes(StandardCharsets.UTF_8));
-    }
-
-//    private byte[] hashFunction(byte[] input1, byte[] input2) {
-//        messageDigest.reset(); // 重置 MessageDigest 实例
-//        messageDigest.update(input1); // 更新第一个输入到 MessageDigest
-//        messageDigest.update(input2); // 更新第二个输入到 MessageDigest
-//        return messageDigest.digest(); // 返回哈希结果
-//    }
-//    private byte[] hashFunction(byte[] input1, int input2) {
-//        messageDigest.reset(); // 重置MessageDigest实例
-//        messageDigest.update(input1);
-//        // 将int转为byte并更新到MessageDigest
-//        intBuffer[0] = (byte) (input2 >> 24);
-//        intBuffer[1] = (byte) (input2 >> 16);
-//        intBuffer[2] = (byte) (input2 >> 8);
-//        intBuffer[3] = (byte) input2;
-//        messageDigest.update(intBuffer);
-//        return messageDigest.digest();
-//    }
-    // 替代原来的 MessageDigest 实现
-    /**
-     * 安全哈希函数 H1, H2, H3, H4, H5
-     *
-     * @param input1 输入值1
-     * @param input2 输入值2
-     * @return 哈希后的值
-     * @throws NoSuchAlgorithmException
-     */
-    private byte[] hashFunction(byte[] input1, byte[] input2) {
-        Blake2bDigest digest = new Blake2bDigest(HASH_OUTPUT_LENGTH * 8); // 输出位数为 128 位
-
-        // 更新哈希数据
-        digest.update(input1, 0, input1.length);
-        digest.update(input2, 0, input2.length);
-
-        // 输出哈希值
-        byte[] result = new byte[HASH_OUTPUT_LENGTH];
-        digest.doFinal(result, 0);
-        return result;
-    }
-    private byte[] hashFunction(byte[] input1, int input2) {
-        Blake2bDigest digest = new Blake2bDigest(HASH_OUTPUT_LENGTH * 8); // 设置输出位数为 128 位
-
-        // 更新哈希数据
-        digest.update(input1, 0, input1.length);
-
-        // 将 int 转为 byte[] 并添加到哈希
-        intBuffer[0] = (byte) (input2 >> 24);
-        intBuffer[1] = (byte) (input2 >> 16);
-        intBuffer[2] = (byte) (input2 >> 8);
-        intBuffer[3] = (byte) input2;
-        digest.update(intBuffer, 0, intBuffer.length);
-
-        // 输出哈希值
-        byte[] result = new byte[HASH_OUTPUT_LENGTH];
-        digest.doFinal(result, 0);
-        return result;
-    }
-
-    /**
      * 异或操作，将两个字节数组进行逐位异或
      *
      * @param a 字节数组a
@@ -1195,13 +1190,16 @@ public class RSKQ_Biginteger {
         // 保留 b 的多余部分，a 的内容被完全异或到 b 上
         return b;
     }
+
     // 获取更新操作的平均时间
     public int getPDBSize() {
         return this.PDB.size();
     }
+
     public int getKDBSize() {
         return this.KDB.size();
     }
+
     // 获取更新操作的平均时间
     public double getAverageUpdateTime() {
         return totalUpdateTimes.stream().mapToDouble(Double::doubleValue).average().orElse(0.0);
@@ -1229,10 +1227,12 @@ public class RSKQ_Biginteger {
                 .average()
                 .orElse(0.0);
     }
-    public void clearUpdateTime(){
+
+    public void clearUpdateTime() {
         totalUpdateTimes.clear();
     }
-    public void clearSearchTime(){
+
+    public void clearSearchTime() {
         serverSearchTimes.clear();
         clientSearchTimes.clear();
     }

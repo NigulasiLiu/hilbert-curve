@@ -15,7 +15,7 @@ import java.util.stream.Collectors;
 // ConstructionOne类，将所有之前的方法合并到此类中
 public class ConstructionOne {
 
-    private Map<String, String> Ux, Uy;
+    public Map<String, String> Ux, Uy;
     private Random prf; // 伪随机函数 (PRF)
     private int lambda; // 安全参数 λ
     private int t;
@@ -162,7 +162,7 @@ public class ConstructionOne {
         if ("homomorphic".equalsIgnoreCase(type)) {
             BigInteger bigKey = new BigInteger(key);  // 将key转换为BigInteger
             return homomorphicEncrypt(bigKey, index);
-        } else if ("aes".equalsIgnoreCase(type)) {
+        } else if ("shift".equalsIgnoreCase(type)) {
             // 使用AES加密
             return aesEncrypt(key, index.toString());
         } else {
@@ -184,7 +184,7 @@ public class ConstructionOne {
                 decryptedValue = decryptedValue.add(n);
             }
             decrypted = decryptedValue.toString();
-        } else if ("aes".equalsIgnoreCase(type)) {
+        } else if ("shift".equalsIgnoreCase(type)) {
             // 使用AES解密
             decrypted = aesDecrypt(key, ei);
         } else {
@@ -402,7 +402,7 @@ public class ConstructionOne {
             // 对 X 轴的节点进行加密处理并存储到 Ux
             if (Sx.containsKey(ni.index)) {
                 // 使用 BigInteger 处理label
-                String ei = encrypt(Ki, new BigInteger(BTx[ni.index].label), C, "aes");
+                String ei = encrypt(Ki, new BigInteger(BTx[ni.index].label), C, "shift");
                 Ux.put(TAGXi, ei);
             }
             // 更新进度条
@@ -420,7 +420,7 @@ public class ConstructionOne {
             // 对 Y 轴的节点进行加密处理并存储到 Uy
             if (Sy.containsKey(ni.index)) {
                 // 使用 BigInteger 处理label
-                String ei = encrypt(Ki, new BigInteger(BTy[ni.index].label), C_prime, "aes");
+                String ei = encrypt(Ki, new BigInteger(BTy[ni.index].label), C_prime, "shift");
                 Uy.put(TAGYi, ei);
             }
             // 更新进度条
@@ -507,7 +507,7 @@ public class ConstructionOne {
         // 对 X 轴的每个节点进行解密，并使用 orStrings 累积结果
         for (int i = 0; i < xNodes.size(); i++) {
             List<String> Kx_dec = buildKey(xNodes.get(i), Ks);
-            String decryptedX = decrypt(ER.get(0).get(i), C, Kx_dec.get(0), "aes");
+            String decryptedX = decrypt(ER.get(0).get(i), C, Kx_dec.get(0), "shift");
 
             // 打印 ER.get(0).get(i)
 //            System.out.print("Kx: " + Kx_dec.get(0));
@@ -524,7 +524,7 @@ public class ConstructionOne {
         // 对 Y 轴的每个节点进行解密，并使用 orStrings 累积结果
         for (int i = 0; i < yNodes.size(); i++) {
             List<String> Ky_dec = buildKey(yNodes.get(i), Ks);
-            String decryptedY = decrypt(ER.get(1).get(i), C_prime, Ky_dec.get(0), "aes");
+            String decryptedY = decrypt(ER.get(1).get(i), C_prime, Ky_dec.get(0), "shift");
 
             // 打印 yNodes.get(i) 和 decryptedY
 //            System.out.print("Ky: " + Ky_dec.get(0));
@@ -586,8 +586,6 @@ public class ConstructionOne {
         // 查找需要更新的叶子节点
         List<Node> LNx = new ArrayList<>(); // Find leaf nodes
 
-        //find nodes to be updated
-        List<Integer> nodesToUpdate = new ArrayList<>();
         // 判断 Pi 是否存在于 xCoordinates 和 yCoordinates 中
         boolean isInX = false;
         boolean isInY = false;
@@ -643,7 +641,7 @@ public class ConstructionOne {
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 进行加密
-                String eU = encrypt(KAlpha, new BigInteger(BTx[nAlpha.index].label), C, "aes");
+                String eU = encrypt(KAlpha, new BigInteger(BTx[nAlpha.index].label), C, "shift");
                 //System.out.println("BTx[" + nAlpha.index + "].label: " + BTx[nAlpha.index].label + ", eUx: " + eU + ", C: " + C);
 
                 // 将更新的标签和密文存入 LUx
@@ -662,7 +660,7 @@ public class ConstructionOne {
                     // 更新父节点
                     String TAGXBeta = new String(generatePRF(Kx, beta), StandardCharsets.UTF_8);
                     String KBeta = new String(generatePRF(Ks, beta), StandardCharsets.UTF_8);
-                    String eUBeta = encrypt(KBeta, new BigInteger(BTx[beta].label), C, "aes");
+                    String eUBeta = encrypt(KBeta, new BigInteger(BTx[beta].label), C, "shift");
                     // 添加到 LUx
                     LUx.add(TAGXBeta + "," + eUBeta);
                 }
@@ -691,7 +689,7 @@ public class ConstructionOne {
                 //System.out.println("Generated KAlpha: " + KAlpha + ", for nAlpha.index: " + nAlpha.index);
 
                 // 进行加密
-                String eU = encrypt(KAlpha, new BigInteger(BTy[nAlpha.index].label), C_prime, "aes");
+                String eU = encrypt(KAlpha, new BigInteger(BTy[nAlpha.index].label), C_prime, "shift");
                 //System.out.println("BTy[" + nAlpha.index + "].label: " + BTy[nAlpha.index].label + ", eUy: " + eU + ", C_prime: " + C_prime);
                 // 将更新的标签和密文存入 LUx
                 LUx.add(TAGXAlpha + "," + eU);
@@ -709,7 +707,7 @@ public class ConstructionOne {
                     // 更新父节点
                     String TAGXBeta = new String(generatePRF(Kx, beta), StandardCharsets.UTF_8);
                     String KBeta = new String(generatePRF(Ks, beta), StandardCharsets.UTF_8);
-                    String eUBeta = encrypt(KBeta, new BigInteger(BTy[beta].label), C_prime, "aes");
+                    String eUBeta = encrypt(KBeta, new BigInteger(BTy[beta].label), C_prime, "shift");
                     // 添加到 LUx
                     LUx.add(TAGXBeta + "," + eUBeta);
                 }

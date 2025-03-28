@@ -124,9 +124,9 @@ public class BPCGenerator {
         return binaryStrings;
     }
     public static void main(String[] args) {
-        int bits = 6;
-        BigInteger[] R2 = {new BigInteger("1"), new BigInteger("3")};
-        BigInteger[] R1 = {new BigInteger("33"), new BigInteger("63")};
+        int bits = 3;
+        BigInteger[] R1 = {new BigInteger("28"), new BigInteger("35")};
+        BigInteger[] R2 = {new BigInteger("56"), new BigInteger("59")};
 
         //生成min到max的所有Bigint
         BigInteger[] R = Stream.iterate(R1[0], n -> n.add(BigInteger.ONE))
@@ -137,6 +137,9 @@ public class BPCGenerator {
         for (BigInteger r : R) {
             System.out.print(r + " ");
         }
+        Map<Integer, List<BigInteger>> results1 = BPCGenerator.GetBPCValueMap(R,bits);
+        System.out.println("\nBPC2:" + BPCGenerator.convertMapToPrefixString(results1,bits));
+        System.out.println("\nBPC3:" + BPCGenerator.convertToOnlyPrefix(results1,bits));
 //        List<BigInteger> results = bpc.GetBPCValueList(R);
 //        List<String> BinaryResults = new ArrayList<>();
 ////        System.out.println("BPC1: " + results);
@@ -146,7 +149,6 @@ public class BPCGenerator {
 //        }
 //        System.out.println("\nBPC1:" + BinaryResults);
         // 获取BPC结果（包括分组）
-        Map<Integer, List<BigInteger>> results1 = BPCGenerator.GetBPCValueMap(R,bits);
 //        System.out.println("\nbpc_string:");
 //        int groupIndex = 1; // 分组计数器
 
@@ -155,8 +157,6 @@ public class BPCGenerator {
 //            System.out.println(entry.getValue());
 //            groupIndex++;
 //        }
-        System.out.println("\nBPC2:" + BPCGenerator.convertMapToPrefixString(results1,bits));
-        System.out.println("\nBPC3:" + BPCGenerator.convertToOnlyPrefix(results1,bits));
 
     }
 }
